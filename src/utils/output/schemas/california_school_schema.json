@@ -1,0 +1,699 @@
+{
+  "database": "california_schools",
+  "extracted_at": "2026-01-19T15:07:30.983911",
+  "tables": {
+    "frpm": {
+      "columns": [
+        {
+          "name": "CDSCode",
+          "type": "TEXT",
+          "not_null": true,
+          "default": null,
+          "is_primary_key": true
+        },
+        {
+          "name": "Academic Year",
+          "type": "TEXT",
+          "not_null": false,
+          "default": null,
+          "is_primary_key": false
+        },
+        {
+          "name": "County Code",
+          "type": "TEXT",
+          "not_null": false,
+          "default": null,
+          "is_primary_key": false
+        },
+        {
+          "name": "District Code",
+          "type": "INTEGER",
+          "not_null": false,
+          "default": null,
+          "is_primary_key": false
+        },
+        {
+          "name": "School Code",
+          "type": "TEXT",
+          "not_null": false,
+          "default": null,
+          "is_primary_key": false
+        },
+        {
+          "name": "County Name",
+          "type": "TEXT",
+          "not_null": false,
+          "default": null,
+          "is_primary_key": false
+        },
+        {
+          "name": "District Name",
+          "type": "TEXT",
+          "not_null": false,
+          "default": null,
+          "is_primary_key": false
+        },
+        {
+          "name": "School Name",
+          "type": "TEXT",
+          "not_null": false,
+          "default": null,
+          "is_primary_key": false
+        },
+        {
+          "name": "District Type",
+          "type": "TEXT",
+          "not_null": false,
+          "default": null,
+          "is_primary_key": false
+        },
+        {
+          "name": "School Type",
+          "type": "TEXT",
+          "not_null": false,
+          "default": null,
+          "is_primary_key": false
+        },
+        {
+          "name": "Educational Option Type",
+          "type": "TEXT",
+          "not_null": false,
+          "default": null,
+          "is_primary_key": false
+        },
+        {
+          "name": "NSLP Provision Status",
+          "type": "TEXT",
+          "not_null": false,
+          "default": null,
+          "is_primary_key": false
+        },
+        {
+          "name": "Charter School (Y/N)",
+          "type": "INTEGER",
+          "not_null": false,
+          "default": null,
+          "is_primary_key": false
+        },
+        {
+          "name": "Charter School Number",
+          "type": "TEXT",
+          "not_null": false,
+          "default": null,
+          "is_primary_key": false
+        },
+        {
+          "name": "Charter Funding Type",
+          "type": "TEXT",
+          "not_null": false,
+          "default": null,
+          "is_primary_key": false
+        },
+        {
+          "name": "IRC",
+          "type": "INTEGER",
+          "not_null": false,
+          "default": null,
+          "is_primary_key": false
+        },
+        {
+          "name": "Low Grade",
+          "type": "TEXT",
+          "not_null": false,
+          "default": null,
+          "is_primary_key": false
+        },
+        {
+          "name": "High Grade",
+          "type": "TEXT",
+          "not_null": false,
+          "default": null,
+          "is_primary_key": false
+        },
+        {
+          "name": "Enrollment (K-12)",
+          "type": "REAL",
+          "not_null": false,
+          "default": null,
+          "is_primary_key": false
+        },
+        {
+          "name": "Free Meal Count (K-12)",
+          "type": "REAL",
+          "not_null": false,
+          "default": null,
+          "is_primary_key": false
+        },
+        {
+          "name": "Percent (%) Eligible Free (K-12)",
+          "type": "REAL",
+          "not_null": false,
+          "default": null,
+          "is_primary_key": false
+        },
+        {
+          "name": "FRPM Count (K-12)",
+          "type": "REAL",
+          "not_null": false,
+          "default": null,
+          "is_primary_key": false
+        },
+        {
+          "name": "Percent (%) Eligible FRPM (K-12)",
+          "type": "REAL",
+          "not_null": false,
+          "default": null,
+          "is_primary_key": false
+        },
+        {
+          "name": "Enrollment (Ages 5-17)",
+          "type": "REAL",
+          "not_null": false,
+          "default": null,
+          "is_primary_key": false
+        },
+        {
+          "name": "Free Meal Count (Ages 5-17)",
+          "type": "REAL",
+          "not_null": false,
+          "default": null,
+          "is_primary_key": false
+        },
+        {
+          "name": "Percent (%) Eligible Free (Ages 5-17)",
+          "type": "REAL",
+          "not_null": false,
+          "default": null,
+          "is_primary_key": false
+        },
+        {
+          "name": "FRPM Count (Ages 5-17)",
+          "type": "REAL",
+          "not_null": false,
+          "default": null,
+          "is_primary_key": false
+        },
+        {
+          "name": "Percent (%) Eligible FRPM (Ages 5-17)",
+          "type": "REAL",
+          "not_null": false,
+          "default": null,
+          "is_primary_key": false
+        },
+        {
+          "name": "2013-14 CALPADS Fall 1 Certification Status",
+          "type": "INTEGER",
+          "not_null": false,
+          "default": null,
+          "is_primary_key": false
+        }
+      ],
+      "primary_keys": [
+        "CDSCode"
+      ],
+      "foreign_keys": [
+        {
+          "column": "CDSCode",
+          "references_table": "schools",
+          "references_column": "CDSCode",
+          "on_update": "NO ACTION",
+          "on_delete": "NO ACTION"
+        }
+      ],
+      "indexes": [
+        {
+          "name": "sqlite_autoindex_frpm_1",
+          "unique": true,
+          "columns": [
+            "CDSCode"
+          ]
+        }
+      ],
+      "row_count": 9986
+    },
+    "satscores": {
+      "columns": [
+        {
+          "name": "cds",
+          "type": "TEXT",
+          "not_null": true,
+          "default": null,
+          "is_primary_key": true
+        },
+        {
+          "name": "rtype",
+          "type": "TEXT",
+          "not_null": true,
+          "default": null,
+          "is_primary_key": false
+        },
+        {
+          "name": "sname",
+          "type": "TEXT",
+          "not_null": false,
+          "default": null,
+          "is_primary_key": false
+        },
+        {
+          "name": "dname",
+          "type": "TEXT",
+          "not_null": false,
+          "default": null,
+          "is_primary_key": false
+        },
+        {
+          "name": "cname",
+          "type": "TEXT",
+          "not_null": false,
+          "default": null,
+          "is_primary_key": false
+        },
+        {
+          "name": "enroll12",
+          "type": "INTEGER",
+          "not_null": true,
+          "default": null,
+          "is_primary_key": false
+        },
+        {
+          "name": "NumTstTakr",
+          "type": "INTEGER",
+          "not_null": true,
+          "default": null,
+          "is_primary_key": false
+        },
+        {
+          "name": "AvgScrRead",
+          "type": "INTEGER",
+          "not_null": false,
+          "default": null,
+          "is_primary_key": false
+        },
+        {
+          "name": "AvgScrMath",
+          "type": "INTEGER",
+          "not_null": false,
+          "default": null,
+          "is_primary_key": false
+        },
+        {
+          "name": "AvgScrWrite",
+          "type": "INTEGER",
+          "not_null": false,
+          "default": null,
+          "is_primary_key": false
+        },
+        {
+          "name": "NumGE1500",
+          "type": "INTEGER",
+          "not_null": false,
+          "default": null,
+          "is_primary_key": false
+        }
+      ],
+      "primary_keys": [
+        "cds"
+      ],
+      "foreign_keys": [
+        {
+          "column": "cds",
+          "references_table": "schools",
+          "references_column": "CDSCode",
+          "on_update": "NO ACTION",
+          "on_delete": "NO ACTION"
+        }
+      ],
+      "indexes": [
+        {
+          "name": "sqlite_autoindex_satscores_1",
+          "unique": true,
+          "columns": [
+            "cds"
+          ]
+        }
+      ],
+      "row_count": 2269
+    },
+    "schools": {
+      "columns": [
+        {
+          "name": "CDSCode",
+          "type": "TEXT",
+          "not_null": true,
+          "default": null,
+          "is_primary_key": true
+        },
+        {
+          "name": "NCESDist",
+          "type": "TEXT",
+          "not_null": false,
+          "default": null,
+          "is_primary_key": false
+        },
+        {
+          "name": "NCESSchool",
+          "type": "TEXT",
+          "not_null": false,
+          "default": null,
+          "is_primary_key": false
+        },
+        {
+          "name": "StatusType",
+          "type": "TEXT",
+          "not_null": true,
+          "default": null,
+          "is_primary_key": false
+        },
+        {
+          "name": "County",
+          "type": "TEXT",
+          "not_null": true,
+          "default": null,
+          "is_primary_key": false
+        },
+        {
+          "name": "District",
+          "type": "TEXT",
+          "not_null": true,
+          "default": null,
+          "is_primary_key": false
+        },
+        {
+          "name": "School",
+          "type": "TEXT",
+          "not_null": false,
+          "default": null,
+          "is_primary_key": false
+        },
+        {
+          "name": "Street",
+          "type": "TEXT",
+          "not_null": false,
+          "default": null,
+          "is_primary_key": false
+        },
+        {
+          "name": "StreetAbr",
+          "type": "TEXT",
+          "not_null": false,
+          "default": null,
+          "is_primary_key": false
+        },
+        {
+          "name": "City",
+          "type": "TEXT",
+          "not_null": false,
+          "default": null,
+          "is_primary_key": false
+        },
+        {
+          "name": "Zip",
+          "type": "TEXT",
+          "not_null": false,
+          "default": null,
+          "is_primary_key": false
+        },
+        {
+          "name": "State",
+          "type": "TEXT",
+          "not_null": false,
+          "default": null,
+          "is_primary_key": false
+        },
+        {
+          "name": "MailStreet",
+          "type": "TEXT",
+          "not_null": false,
+          "default": null,
+          "is_primary_key": false
+        },
+        {
+          "name": "MailStrAbr",
+          "type": "TEXT",
+          "not_null": false,
+          "default": null,
+          "is_primary_key": false
+        },
+        {
+          "name": "MailCity",
+          "type": "TEXT",
+          "not_null": false,
+          "default": null,
+          "is_primary_key": false
+        },
+        {
+          "name": "MailZip",
+          "type": "TEXT",
+          "not_null": false,
+          "default": null,
+          "is_primary_key": false
+        },
+        {
+          "name": "MailState",
+          "type": "TEXT",
+          "not_null": false,
+          "default": null,
+          "is_primary_key": false
+        },
+        {
+          "name": "Phone",
+          "type": "TEXT",
+          "not_null": false,
+          "default": null,
+          "is_primary_key": false
+        },
+        {
+          "name": "Ext",
+          "type": "TEXT",
+          "not_null": false,
+          "default": null,
+          "is_primary_key": false
+        },
+        {
+          "name": "Website",
+          "type": "TEXT",
+          "not_null": false,
+          "default": null,
+          "is_primary_key": false
+        },
+        {
+          "name": "OpenDate",
+          "type": "DATE",
+          "not_null": false,
+          "default": null,
+          "is_primary_key": false
+        },
+        {
+          "name": "ClosedDate",
+          "type": "DATE",
+          "not_null": false,
+          "default": null,
+          "is_primary_key": false
+        },
+        {
+          "name": "Charter",
+          "type": "INTEGER",
+          "not_null": false,
+          "default": null,
+          "is_primary_key": false
+        },
+        {
+          "name": "CharterNum",
+          "type": "TEXT",
+          "not_null": false,
+          "default": null,
+          "is_primary_key": false
+        },
+        {
+          "name": "FundingType",
+          "type": "TEXT",
+          "not_null": false,
+          "default": null,
+          "is_primary_key": false
+        },
+        {
+          "name": "DOC",
+          "type": "TEXT",
+          "not_null": true,
+          "default": null,
+          "is_primary_key": false
+        },
+        {
+          "name": "DOCType",
+          "type": "TEXT",
+          "not_null": true,
+          "default": null,
+          "is_primary_key": false
+        },
+        {
+          "name": "SOC",
+          "type": "TEXT",
+          "not_null": false,
+          "default": null,
+          "is_primary_key": false
+        },
+        {
+          "name": "SOCType",
+          "type": "TEXT",
+          "not_null": false,
+          "default": null,
+          "is_primary_key": false
+        },
+        {
+          "name": "EdOpsCode",
+          "type": "TEXT",
+          "not_null": false,
+          "default": null,
+          "is_primary_key": false
+        },
+        {
+          "name": "EdOpsName",
+          "type": "TEXT",
+          "not_null": false,
+          "default": null,
+          "is_primary_key": false
+        },
+        {
+          "name": "EILCode",
+          "type": "TEXT",
+          "not_null": false,
+          "default": null,
+          "is_primary_key": false
+        },
+        {
+          "name": "EILName",
+          "type": "TEXT",
+          "not_null": false,
+          "default": null,
+          "is_primary_key": false
+        },
+        {
+          "name": "GSoffered",
+          "type": "TEXT",
+          "not_null": false,
+          "default": null,
+          "is_primary_key": false
+        },
+        {
+          "name": "GSserved",
+          "type": "TEXT",
+          "not_null": false,
+          "default": null,
+          "is_primary_key": false
+        },
+        {
+          "name": "Virtual",
+          "type": "TEXT",
+          "not_null": false,
+          "default": null,
+          "is_primary_key": false
+        },
+        {
+          "name": "Magnet",
+          "type": "INTEGER",
+          "not_null": false,
+          "default": null,
+          "is_primary_key": false
+        },
+        {
+          "name": "Latitude",
+          "type": "REAL",
+          "not_null": false,
+          "default": null,
+          "is_primary_key": false
+        },
+        {
+          "name": "Longitude",
+          "type": "REAL",
+          "not_null": false,
+          "default": null,
+          "is_primary_key": false
+        },
+        {
+          "name": "AdmFName1",
+          "type": "TEXT",
+          "not_null": false,
+          "default": null,
+          "is_primary_key": false
+        },
+        {
+          "name": "AdmLName1",
+          "type": "TEXT",
+          "not_null": false,
+          "default": null,
+          "is_primary_key": false
+        },
+        {
+          "name": "AdmEmail1",
+          "type": "TEXT",
+          "not_null": false,
+          "default": null,
+          "is_primary_key": false
+        },
+        {
+          "name": "AdmFName2",
+          "type": "TEXT",
+          "not_null": false,
+          "default": null,
+          "is_primary_key": false
+        },
+        {
+          "name": "AdmLName2",
+          "type": "TEXT",
+          "not_null": false,
+          "default": null,
+          "is_primary_key": false
+        },
+        {
+          "name": "AdmEmail2",
+          "type": "TEXT",
+          "not_null": false,
+          "default": null,
+          "is_primary_key": false
+        },
+        {
+          "name": "AdmFName3",
+          "type": "TEXT",
+          "not_null": false,
+          "default": null,
+          "is_primary_key": false
+        },
+        {
+          "name": "AdmLName3",
+          "type": "TEXT",
+          "not_null": false,
+          "default": null,
+          "is_primary_key": false
+        },
+        {
+          "name": "AdmEmail3",
+          "type": "TEXT",
+          "not_null": false,
+          "default": null,
+          "is_primary_key": false
+        },
+        {
+          "name": "LastUpdate",
+          "type": "DATE",
+          "not_null": true,
+          "default": null,
+          "is_primary_key": false
+        }
+      ],
+      "primary_keys": [
+        "CDSCode"
+      ],
+      "foreign_keys": [],
+      "indexes": [
+        {
+          "name": "sqlite_autoindex_schools_1",
+          "unique": true,
+          "columns": [
+            "CDSCode"
+          ]
+        }
+      ],
+      "row_count": 17686
+    }
+  }
+}
