@@ -60,9 +60,10 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # Paths - Support both local and Docker environments
-DATA_DIR = Path(os.environ.get("DATA_DIR", Path(__file__).parent.parent / "data"))
+# DATA_DIR = Path(os.environ.get("DATA_DIR", Path(__file__).parent.parent / "data"))
 DB_PATH = Path(os.environ.get("DB_PATH", Path(__file__).parent / "california_schools.sqlite"))
-DEV_JSON_PATH = DATA_DIR / "bird_data" / "dev.json"
+DEV_JSON_PATH = Path(os.environ.get("DB_PATH", Path(__file__).parent / "dev.json"))
+# DEV_JSON_PATH = DATA_DIR / "bird_data" / "dev.json"
 
 
 @st.cache_data
