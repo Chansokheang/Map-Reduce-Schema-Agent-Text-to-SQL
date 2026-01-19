@@ -3,9 +3,10 @@ services:
     build:
       context: ..
       dockerfile: app/Dockerfile
+    image: sql-comparison-app:latest
     container_name: sql-comparison-app
     ports:
-      - "8501:8501"
+      - "9005:8501"
     volumes:
       # REQUIRED: Mount data directory containing SQLite databases
       # This includes: dev.json, dev_tables.json, and dev_databases/*.sqlite
