@@ -11,6 +11,7 @@ import streamlit as st
 import sqlite3
 import json
 import pandas as pd
+import os
 from pathlib import Path
 
 # Page config
@@ -58,10 +59,11 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# Paths
-BASE_DIR = Path(__file__).parent.parent
-DB_PATH = BASE_DIR / "data" / "bird_data" / "dev_databases" / "california_schools" / "california_schools.sqlite"
-DEV_JSON_PATH = BASE_DIR / "data" / "bird_data" / "dev.json"
+# Paths - Support both local and Docker environments
+# In Docker: DATA_DIR=/app/data, In local: uses relative path from file
+DATA_DIR = Path(os.environ.get("DATA_DIR", Path(__file__).parent.parent / "data"))
+DB_PATH = DATA_DIR / "bird_data" / "dev_databases" / "california_schools" / "california_schools.sqlite"
+DEV_JSON_PATH = DATA_DIR / "bird_data" / "dev.json"
 
 
 @st.cache_data
