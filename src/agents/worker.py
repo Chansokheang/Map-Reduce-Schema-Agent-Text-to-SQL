@@ -370,14 +370,17 @@ class SchemaWorker:
                     Return ONLY JSON:
                     {{
                     "relevant": true,
-                    "score": 0.0,
+                    "score": 1.0,
                     "reason": "short reason",
                     "matched_components": ["component text"],
                     "relevant_columns": ["column_name"]
                     }}
                     Rules:
                     - relevant is true only if at least one component matches the table or columns.
-                    - score is between 0 and 1.
+                    - score MUST be one of: 1.0 (highly relevant), 0.5 (somewhat relevant), or 0.0 (not relevant).
+                    - Use 1.0 if table/columns directly match query components.
+                    - Use 0.5 if table/columns are semantically related but not direct match.
+                    - Use 0.0 if table/columns are unrelated to query.
                     - relevant_columns should include column names that justify the match.
                     """
         response = self.llm_client.complete(
@@ -427,6 +430,21 @@ class SchemaWorker:
             "relevant_columns": relevant_columns
         }
 
+    def _discretize_score(self, score: float) -> float:
+        """
+        Discretize relevance score to [1.0, 0.5, 0.0].
+
+        - score >= 0.7 → 1.0 (highly relevant)
+        - score >= 0.3 → 0.5 (somewhat relevant)
+        - score < 0.3 → 0.0 (not relevant)
+        """
+        if score >= 0.7:
+            return 1.0
+        elif score >= 0.3:
+            return 0.5
+        else:
+            return 0.0
+
     def _build_table_relevance(
         self,
         table_name: str,
@@ -434,15 +452,21 @@ class SchemaWorker:
         columns: list[dict[str, Any]]
     ) -> TableRelevance:
         relevant = bool(result.get("relevant"))
-        score = float(result.get("score", 0.0))
+        raw_score = float(result.get("score", 0.0))
         reason = result.get("reason", "").strip() or "No relevance detected"
+
+        # Discretize score to [1.0, 0.5, 0.0]
+        score = self._discretize_score(raw_score)
+
         relevant_columns = []
         col_map = {col.get("name", ""): col for col in columns if col.get("name")}
         for col_name in result.get("relevant_columns", []):
             if col_name in col_map:
+                # Column score: 1.0 if table is relevant, else 0.5
+                col_score = 1.0 if score >= 0.5 else 0.5
                 relevant_columns.append(ColumnRelevance(
                     column_name=col_name,
-                    relevance_score=max(score, 0.5),
+                    relevance_score=col_score,
                     reason="Matches query component",
                     matched_component=None
                 ))

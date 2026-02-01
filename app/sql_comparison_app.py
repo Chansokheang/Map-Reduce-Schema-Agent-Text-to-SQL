@@ -144,23 +144,7 @@ def main():
     # Sidebar - Question selector
     st.sidebar.header("📋 Question Selection")
 
-    # Create question options
-    question_options = {
-        f"Q{q['question_id']}: {q['question'][:50]}...": q['question_id']
-        for q in questions
-    }
-
-    selected_label = st.sidebar.selectbox(
-        "Select a question:",
-        options=list(question_options.keys()),
-        index=0
-    )
-
-    selected_id = question_options[selected_label]
-    selected_question = next(q for q in questions if q["question_id"] == selected_id)
-
-    # Filter by difficulty
-    st.sidebar.markdown("---")
+    # Filter by difficulty (moved before question selector)
     st.sidebar.subheader("Filter by Difficulty")
     difficulties = list(set(q["difficulty"] for q in questions))
     selected_difficulty = st.sidebar.multiselect(
@@ -171,6 +155,27 @@ def main():
 
     filtered_questions = [q for q in questions if q["difficulty"] in selected_difficulty]
     st.sidebar.write(f"Showing {len(filtered_questions)} of {len(questions)} questions")
+
+    st.sidebar.markdown("---")
+
+    # Create question options from filtered questions
+    question_options = {
+        f"Q{q['question_id']}: {q['question'][:50]}...": q['question_id']
+        for q in filtered_questions
+    }
+
+    if not question_options:
+        st.sidebar.warning("No questions match the selected filters")
+        return
+
+    selected_label = st.sidebar.selectbox(
+        "Select a question:",
+        options=list(question_options.keys()),
+        index=0
+    )
+
+    selected_id = question_options[selected_label]
+    selected_question = next(q for q in filtered_questions if q["question_id"] == selected_id)
 
     # Main content - Tabs
     tab1, tab2 = st.tabs(["📊 Compare SQL", "📝 Question Browser"])
