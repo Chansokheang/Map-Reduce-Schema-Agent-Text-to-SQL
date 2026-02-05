@@ -364,6 +364,9 @@ class SchemaManager:
             for comp in decomposed_query.components
         ]
 
+        # Get the original query for context
+        original_query = decomposed_query.original_query
+
         # Create one worker per table, each with its own mini LLM
         # Execute all workers in parallel
         results = []
@@ -380,7 +383,8 @@ class SchemaManager:
                     [table_name],  # Single table assignment
                     schema,
                     query_components,
-                    profile
+                    profile,
+                    original_query  # Pass original query for better context
                 )
                 futures.append((table_name, future))
 

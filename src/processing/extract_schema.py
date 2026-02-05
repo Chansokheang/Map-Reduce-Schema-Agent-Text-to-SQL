@@ -40,6 +40,39 @@ def load_dev_tables(dev_tables_path):
     return lookup
 
 
+def get_distinct_values(cursor, table_name: str, column_name: str, column_type: str,
+                        max_distinct: int = 25) -> list | None:
+    """Extract distinct values for low-cardinality TEXT columns. Returns None if skipped."""
+    if "TEXT" not in column_type.upper():
+        return None
+
+    try:
+        # Check cardinality
+        cursor.execute(
+            f'SELECT COUNT(DISTINCT "{column_name}") FROM "{table_name}" '
+            f'WHERE "{column_name}" IS NOT NULL;'
+        )
+        count = cursor.fetchone()[0]
+        if count == 0 or count > max_distinct:
+            return None
+
+        # Fetch values
+        cursor.execute(
+            f'SELECT DISTINCT "{column_name}" FROM "{table_name}" '
+            f'WHERE "{column_name}" IS NOT NULL '
+            f'ORDER BY "{column_name}" LIMIT {max_distinct};'
+        )
+        values = [row[0] for row in cursor.fetchall()]
+
+        # Skip free-text columns (avg value > 50 chars)
+        if values and sum(len(str(v)) for v in values) / len(values) > 50:
+            return None
+
+        return values
+    except Exception:
+        return None
+
+
 def get_schema_with_samples(db_path, dev_tables_lookup, sample_limit=3):
     """Extract all tables, columns, data types, keys, and top N sample rows from a database."""
     conn = sqlite3.connect(db_path)
@@ -72,11 +105,18 @@ def get_schema_with_samples(db_path, dev_tables_lookup, sample_limit=3):
             # Get readable column name
             col_readable = db_lookup["col_map"].get((table, col_name), col_name)
 
-            columns.append({
+            col_dict = {
                 "name": col_name,
                 "readable_name": col_readable,
                 "type": col_type
-            })
+            }
+
+            # Extract distinct values for low-cardinality TEXT columns
+            distinct_vals = get_distinct_values(cursor, table, col_name, col_type)
+            if distinct_vals is not None:
+                col_dict["distinct_values"] = distinct_vals
+
+            columns.append(col_dict)
 
             if is_pk:
                 primary_keys.append(col_name)

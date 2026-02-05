@@ -22,7 +22,7 @@ class Config:
     data_dir: Path = Path("data/bird_data")
     schema_dir: Path = None
     profile_dir: Path = None
-    output_dir: Path = Path("output")
+    output_dir: Path = Path("output/ver1")
 
     # LLM Settings
     llm_model: str = "claude-sonnet-4-5-20250929"

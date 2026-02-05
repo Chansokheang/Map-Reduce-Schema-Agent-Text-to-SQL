@@ -66,7 +66,8 @@ class SchemaWorker:
         table_name: str,
         table_schema: dict[str, Any],
         query_components: list[dict[str, str]],
-        profile: dict[str, Any] = None
+        profile: dict[str, Any] = None,
+        original_query: str = None
     ) -> TableRelevance:
         """
         Verify if a table is relevant to the query.
@@ -76,6 +77,7 @@ class SchemaWorker:
             table_schema: Schema of the table (columns, keys, etc.)
             query_components: Decomposed query components
             profile: Optional profile with semantic information
+            original_query: Original natural language query for context
 
         Returns:
             TableRelevance with score and relevant columns
@@ -96,7 +98,8 @@ class SchemaWorker:
                     table_name,
                     table_readable_name,
                     columns,
-                    component_texts
+                    component_texts,
+                    original_query
                 )
                 return self._build_table_relevance(
                     table_name,
@@ -235,7 +238,8 @@ class SchemaWorker:
         assigned_tables: list[str],
         schema: dict[str, Any],
         query_components: list[dict[str, str]],
-        profile: dict[str, Any] = None
+        profile: dict[str, Any] = None,
+        original_query: str = None
     ) -> VerificationResult:
         """
         Verify all assigned tables.
@@ -247,6 +251,7 @@ class SchemaWorker:
             schema: Full database schema
             query_components: Decomposed query components
             profile: Optional database profile
+            original_query: Original natural language query for context
 
         Returns:
             VerificationResult with all table relevances
@@ -263,7 +268,8 @@ class SchemaWorker:
                     table_name,
                     table_schema,
                     query_components,
-                    profile
+                    profile,
+                    original_query
                 )
             )
 
@@ -280,14 +286,15 @@ class SchemaWorker:
         assigned_tables: list[str],
         schema: dict[str, Any],
         query_components: list[dict[str, str]],
-        profile: dict[str, Any] = None
+        profile: dict[str, Any] = None,
+        original_query: str = None
     ) -> VerificationResult:
         """
         Callable interface for parallel execution.
 
         Allows worker to be used with ThreadPoolExecutor.
         """
-        return self.verify_tables(assigned_tables, schema, query_components, profile)
+        return self.verify_tables(assigned_tables, schema, query_components, profile, original_query)
 
     def _collect_columns(
         self,
@@ -343,7 +350,8 @@ class SchemaWorker:
         table_name: str,
         table_readable_name: str,
         columns: list[dict[str, Any]],
-        component_texts: list[str]
+        component_texts: list[str],
+        original_query: str = None
     ) -> dict[str, Any]:
         column_lines = []
         for col in columns:
@@ -357,32 +365,38 @@ class SchemaWorker:
                 parts.append(f"desc: {description}")
             column_lines.append(" - " + " | ".join(parts))
 
-        prompt = f"""Determine if the table is relevant to ANY query component.
+        # Use original query if available, otherwise use components
+        query_context = original_query if original_query else ", ".join(component_texts)
 
-                    Query components:
-                    {json.dumps(component_texts, ensure_ascii=False)}
+        prompt = f"""Determine if this table is REQUIRED to answer the following question.
 
-                    Table: {table_name}
-                    Readable name: {table_readable_name}
-                    Columns:
-                    {chr(10).join(column_lines) if column_lines else " - (no columns provided)"}
+Question: "{query_context}"
 
-                    Return ONLY JSON:
-                    {{
-                    "relevant": true,
-                    "score": 1.0,
-                    "reason": "short reason",
-                    "matched_components": ["component text"],
-                    "relevant_columns": ["column_name"]
-                    }}
-                    Rules:
-                    - relevant is true only if at least one component matches the table or columns.
-                    - score MUST be one of: 1.0 (highly relevant), 0.5 (somewhat relevant), or 0.0 (not relevant).
-                    - Use 1.0 if table/columns directly match query components.
-                    - Use 0.5 if table/columns are semantically related but not direct match.
-                    - Use 0.0 if table/columns are unrelated to query.
-                    - relevant_columns should include column names that justify the match.
-                    """
+Table: {table_name}
+Table description: {table_readable_name}
+Columns:
+{chr(10).join(column_lines) if column_lines else " - (no columns provided)"}
+
+Return ONLY JSON:
+{{
+  "relevant": true or false,
+  "score": 0.0 to 1.0,
+  "reason": "short reason",
+  "relevant_columns": ["column_name"]
+}}
+
+STRICT Scoring Rules:
+- 1.0: Table is DIRECTLY REQUIRED - the question asks for data that ONLY this table contains.
+- 0.5: Table MAY be needed - for JOINs or foreign key lookups, but not the main data source.
+- 0.0: Table is NOT needed - the question does not require any data from this table.
+
+Examples:
+- Question about "free meal rates" → frpm table = 1.0, satscores table = 0.0
+- Question about "SAT scores" → satscores table = 1.0, frpm table = 0.0
+- Question needing school info for JOIN → schools table = 0.5
+
+Be strict: if the question doesn't need data from "{table_readable_name}", score 0.0."""
+
         response = self.llm_client.complete(
             prompt=prompt,
             max_tokens=256,
