@@ -129,12 +129,18 @@ def process_schema(schema_path: Path, output_dir: Path):
                 description = f"Error generating description: {e}"
                 print(f"    Error for {col_name}: {e}")
 
-            table_result["columns"].append({
+            col_entry = {
                 "name": col_name,
                 "readable_name": column.get("readable_name", col_name),
                 "type": column["type"],
                 "description": description
-            })
+            }
+
+            # Carry through distinct values from schema extraction
+            if column.get("distinct_values"):
+                col_entry["distinct_values"] = column["distinct_values"]
+
+            table_result["columns"].append(col_entry)
 
             print(f"    {col_name}: {description[:60]}...")
 

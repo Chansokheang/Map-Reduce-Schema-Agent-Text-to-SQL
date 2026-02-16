@@ -131,21 +131,21 @@ class SQLExecutor:
         if schema_str:
             schema_context = f"\nDatabase Schema:\n{schema_str}\n"
 
-        prompt = f"""The following SQL query failed with an error. Fix the SQL query.
+        prompt = f"""The following SQL query needs to be fixed. Fix the SQL query.
 
 Question: {nl_query}
 {schema_context}
-Failed SQL (attempt {iteration}/{self.max_iterations}):
+SQL (attempt {iteration}/{self.max_iterations}):
 {sql}
 
-Error: {error}
+Issue: {error}
 
-Fix the SQL to resolve this error. Return ONLY the corrected SQL query, nothing else."""
+Fix the SQL to resolve this issue. If the schema shows [Values: ...] for a column, use ONLY those exact values. Return ONLY the corrected SQL query, nothing else."""
 
         try:
             response = self.llm_client.complete(
                 prompt=prompt,
-                system_prompt="You are an SQL debugging expert. Fix the SQL query based on the error. Return ONLY the corrected SQL.",
+                system_prompt="You are an SQL debugging expert. Fix the SQL query based on the issue. If column values are shown in the schema, use those exact values. Return ONLY the corrected SQL.",
                 max_tokens=1024,
                 temperature=0.0
             )
@@ -208,23 +208,64 @@ Fix the SQL to resolve this error. Return ONLY the corrected SQL query, nothing 
             success, rows, error = self.execute_sql(current_sql, db_path)
 
             if success:
-                # Correct → return result
-                elapsed_ms = (time.perf_counter() - start_time) * 1000.0
-                status = "success" if iteration == 1 else "refined"
+                row_count = len(rows) if rows else 0
 
-                return ExecutionResult(
-                    candidate_id=candidate.candidate_id,
-                    sql=current_sql,
-                    success=True,
-                    result=rows,
-                    execution_time_ms=elapsed_ms,
-                    row_count=len(rows) if rows else 0,
-                    iterations=iteration,
-                    refinement_history=refinement_history,
-                    status=status
+                # Non-empty result → accept as success
+                if row_count > 0:
+                    elapsed_ms = (time.perf_counter() - start_time) * 1000.0
+                    status = "success" if iteration == 1 else "refined"
+
+                    return ExecutionResult(
+                        candidate_id=candidate.candidate_id,
+                        sql=current_sql,
+                        success=True,
+                        result=rows,
+                        execution_time_ms=elapsed_ms,
+                        row_count=row_count,
+                        iterations=iteration,
+                        refinement_history=refinement_history,
+                        status=status
+                    )
+
+                # Empty result (0 rows) → treat as needing refinement
+                feedback = (
+                    "Query returned 0 rows. "
+                    "The WHERE clause filter values may not match actual data. "
+                    "Check that string literals match exact values in the database."
                 )
 
-            # Failed → record this attempt
+                refinement_history.append({
+                    "iteration": iteration,
+                    "sql": current_sql,
+                    "error": feedback
+                })
+
+                # Last iteration with empty result → accept as success with 0 rows
+                if iteration >= self.max_iterations:
+                    elapsed_ms = (time.perf_counter() - start_time) * 1000.0
+                    return ExecutionResult(
+                        candidate_id=candidate.candidate_id,
+                        sql=current_sql,
+                        success=True,
+                        result=rows,
+                        execution_time_ms=elapsed_ms,
+                        row_count=0,
+                        iterations=iteration,
+                        refinement_history=refinement_history,
+                        status="refined"
+                    )
+
+                # Refine and retry
+                current_sql = self.refine_sql(
+                    sql=current_sql,
+                    error=feedback,
+                    nl_query=nl_query,
+                    schema_str=schema_str,
+                    iteration=iteration
+                )
+                continue
+
+            # Error → record this attempt
             refinement_history.append({
                 "iteration": iteration,
                 "sql": current_sql,

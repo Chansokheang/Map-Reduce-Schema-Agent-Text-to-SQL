@@ -87,8 +87,8 @@ class PromptBuilder:
                 col_def = f"    {col_name} {col_type}"
 
                 # Add description as comment if requested
+                desc_parts = []
                 if include_descriptions or include_sme:
-                    desc_parts = []
                     if include_descriptions and col.get("description"):
                         desc_parts.append(col["description"])
                     if include_sme and col.get("sme_description"):
@@ -96,8 +96,18 @@ class PromptBuilder:
                     if col.get("readable_name") and col["readable_name"] != col_name:
                         desc_parts.insert(0, f"({col['readable_name']})")
 
-                    if desc_parts:
-                        col_def += f"  -- {' '.join(desc_parts)}"
+                # Always add distinct values for categorical columns
+                if col.get("distinct_values"):
+                    values = col["distinct_values"]
+                    if len(values) <= 10:
+                        values_str = ", ".join(f"'{v}'" for v in values)
+                    else:
+                        shown = ", ".join(f"'{v}'" for v in values[:8])
+                        values_str = f"{shown}, ... (+{len(values) - 8} more)"
+                    desc_parts.append(f"[Values: {values_str}]")
+
+                if desc_parts:
+                    col_def += f"  -- {' '.join(desc_parts)}"
 
                 column_lines.append(col_def)
             else:
@@ -177,6 +187,8 @@ class PromptBuilder:
                             col_copy["sme_description"] = sme_col["description"]
                         if sme_col.get("readable_name"):
                             col_copy["readable_name"] = sme_col["readable_name"]
+                        if sme_col.get("distinct_values"):
+                            col_copy["distinct_values"] = sme_col["distinct_values"]
                         merged_columns.append(col_copy)
                     else:
                         merged_columns.append(col)
@@ -230,6 +242,8 @@ class PromptBuilder:
                             col_copy["description"] = profile_col["description"]
                         if profile_col.get("readable_name"):
                             col_copy["readable_name"] = profile_col["readable_name"]
+                        if profile_col.get("distinct_values"):
+                            col_copy["distinct_values"] = profile_col["distinct_values"]
                         merged_columns.append(col_copy)
                     else:
                         merged_columns.append(col)
@@ -337,6 +351,8 @@ class PromptBuilder:
                             col_copy["description"] = profile_col["description"]
                         if profile_col.get("readable_name"):
                             col_copy["readable_name"] = profile_col["readable_name"]
+                        if profile_col.get("distinct_values"):
+                            col_copy["distinct_values"] = profile_col["distinct_values"]
                         merged_columns.append(col_copy)
                     else:
                         merged_columns.append(col)
@@ -407,6 +423,8 @@ class PromptBuilder:
                         col_copy["description"] = profile_col["description"]
                     if profile_col.get("readable_name"):
                         col_copy["readable_name"] = profile_col["readable_name"]
+                    if profile_col.get("distinct_values"):
+                        col_copy["distinct_values"] = profile_col["distinct_values"]
 
                     # Add SME description
                     sme_col = sme_cols.get(col_name, {})

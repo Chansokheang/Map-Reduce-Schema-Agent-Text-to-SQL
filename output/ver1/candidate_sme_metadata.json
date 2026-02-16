@@ -1,4 +1,4 @@
 {
-    "0": "SELECT MAX(CAST(`Free Meal Count (K-12)` AS REAL) / `Enrollment (K-12)`) AS highest_eligible_free_rate\nFROM frpm\nWHERE `County Name` = 'Alameda' AND `Enrollment (K-12)` > 0\t----- bird -----\tcalifornia_schools",
-    "1": "SELECT \n    CAST(`Free Meal Count (Ages 5-17)` AS REAL) / `Enrollment (Ages 5-17)` AS eligible_free_rate\nFROM frpm\nWHERE `School Type` = 'Continuation Schools'\nAND `Enrollment (Ages 5-17)` > 0\nORDER BY eligible_free_rate ASC\nLIMIT 3\t----- bird -----\tcalifornia_schools"
+    "0": "SELECT MAX(CAST(`Free Meal Count (K-12)` AS REAL) / `Enrollment (K-12)`)\nFROM frpm\nWHERE `County Name` = 'Alameda'\t----- bird -----\tcalifornia_schools",
+    "1": "SELECT \n    CAST(`Free Meal Count (Ages 5-17)` AS REAL) / `Enrollment (Ages 5-17)` AS eligible_free_rate\nFROM frpm\nWHERE `School Type` = 'Continuation High Schools'\n    AND `Enrollment (Ages 5-17)` > 0\nORDER BY eligible_free_rate ASC\nLIMIT 3;\t----- bird -----\tcalifornia_schools"
 }
