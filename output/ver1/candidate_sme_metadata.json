@@ -1,4 +1,22 @@
 {
-    "0": "SELECT MAX(CAST(`Free Meal Count (K-12)` AS REAL) / `Enrollment (K-12)`)\nFROM frpm\nWHERE `County Name` = 'Alameda'\t----- bird -----\tcalifornia_schools",
-    "1": "SELECT \n    CAST(`Free Meal Count (Ages 5-17)` AS REAL) / `Enrollment (Ages 5-17)` AS eligible_free_rate\nFROM frpm\nWHERE `School Type` = 'Continuation High Schools'\n    AND `Enrollment (Ages 5-17)` > 0\nORDER BY eligible_free_rate ASC\nLIMIT 3;\t----- bird -----\tcalifornia_schools"
+    "0": "SELECT MAX(CAST(`Free Meal Count (K-12)` AS REAL) / `Enrollment (K-12)`) AS highest_eligible_free_rate\nFROM frpm\nWHERE `County Name` = 'Alameda' AND `Enrollment (K-12)` > 0\t----- bird -----\tcalifornia_schools",
+    "1": "SELECT \n    CAST(T1.`Free Meal Count (Ages 5-17)` AS REAL) / T1.`Enrollment (Ages 5-17)` AS eligible_free_rate\nFROM frpm AS T1\nINNER JOIN schools AS T2 ON T1.CDSCode = T2.CDSCode\nWHERE T2.SOC = '66'\n    AND T1.`Enrollment (Ages 5-17)` > 0\nORDER BY eligible_free_rate ASC\nLIMIT 3\t----- bird -----\tcalifornia_schools",
+    "2": "SELECT T1.Zip\nFROM schools AS T1\nINNER JOIN frpm AS T2 ON T1.CDSCode = T2.CDSCode\nWHERE T2.`Charter School (Y/N)` = 1 \nAND T2.`District Name` = 'Fresno County Office of Education'\t----- bird -----\tcalifornia_schools",
+    "3": "SELECT s.MailStreet\nFROM frpm f\nJOIN schools s ON f.CDSCode = s.CDSCode\nORDER BY f.`FRPM Count (K-12)` DESC\nLIMIT 1\t----- bird -----\tcalifornia_schools",
+    "4": "SELECT T1.Phone\nFROM schools AS T1\nINNER JOIN frpm AS T2 ON T1.CDSCode = T2.CDSCode\nWHERE T2.`Charter School (Y/N)` = 1\nAND T2.`Charter Funding Type` = 'Directly funded'\nAND T1.OpenDate > '2000-01-01'\t----- bird -----\tcalifornia_schools",
+    "5": "SELECT COUNT(*)\nFROM satscores s\nINNER JOIN schools sc ON s.cds = sc.CDSCode\nWHERE s.AvgScrMath > 400 AND sc.Virtual = 'F'\t----- bird -----\tcalifornia_schools",
+    "6": "SELECT DISTINCT s.School\nFROM schools s\nJOIN satscores sat ON s.CDSCode = sat.cds\nWHERE sat.NumTstTakr > 500 AND s.Magnet = 1\t----- bird -----\tcalifornia_schools",
+    "7": "SELECT T2.Phone\nFROM satscores AS T1\nINNER JOIN schools AS T2 ON T1.cds = T2.CDSCode\nORDER BY T1.NumGE1500 DESC\nLIMIT 1\t----- bird -----\tcalifornia_schools",
+    "8": "SELECT s.NumTstTakr\nFROM satscores s\nJOIN frpm f ON s.cds = f.CDSCode\nWHERE f.\"FRPM Count (K-12)\" = (\n    SELECT MAX(\"FRPM Count (K-12)\")\n    FROM frpm\n)\t----- bird -----\tcalifornia_schools",
+    "9": "SELECT COUNT(*)\nFROM satscores s\nJOIN schools sc ON s.cds = sc.CDSCode\nWHERE s.AvgScrMath > 560 AND sc.FundingType = 'Directly funded'\t----- bird -----\tcalifornia_schools",
+    "10": "SELECT T2.`FRPM Count (Ages 5-17)`\nFROM satscores T1\nINNER JOIN frpm T2 ON T1.cds = T2.CDSCode\nORDER BY T1.AvgScrRead DESC\nLIMIT 1\t----- bird -----\tcalifornia_schools",
+    "11": "SELECT CDSCode\nFROM frpm\nWHERE (`Enrollment (K-12)` + `Enrollment (Ages 5-17)`) > 500\t----- bird -----\tcalifornia_schools",
+    "12": "SELECT MAX(CAST(T1.`Free Meal Count (Ages 5-17)` AS REAL) / T1.`Enrollment (Ages 5-17)`) AS highest_eligible_free_rate\nFROM frpm T1\nINNER JOIN satscores T2 ON T1.CDSCode = T2.cds\nWHERE CAST(T2.NumGE1500 AS REAL) / T2.NumTstTakr > 0.3\t----- bird -----\tcalifornia_schools",
+    "13": "SELECT s.Phone\nFROM schools s\nJOIN satscores sat ON s.CDSCode = sat.cds\nWHERE sat.NumTstTakr > 0\nORDER BY CAST(sat.NumGE1500 AS REAL) / sat.NumTstTakr DESC\nLIMIT 3\t----- bird -----\tcalifornia_schools",
+    "14": "SELECT s.NCESSchool\nFROM frpm f\nINNER JOIN schools s ON f.CDSCode = s.CDSCode\nORDER BY f.\"Enrollment (Ages 5-17)\" DESC\nLIMIT 5\t----- bird -----\tcalifornia_schools",
+    "15": "SELECT s.dname\nFROM satscores s\nJOIN schools sc ON s.cds = sc.CDSCode\nWHERE sc.StatusType = 'Active' AND s.AvgScrRead IS NOT NULL\nGROUP BY s.dname\nORDER BY AVG(s.AvgScrRead) DESC\nLIMIT 1\t----- bird -----\tcalifornia_schools",
+    "16": "SELECT COUNT(*)\nFROM schools s\nINNER JOIN satscores sat ON s.CDSCode = sat.cds\nWHERE s.County = 'Alameda' \nAND s.StatusType = 'Merged'\nAND sat.NumTstTakr < 100\t----- bird -----\tcalifornia_schools",
+    "17": "SELECT sa.sname, sa.AvgScrWrite, sc.CharterNum\nFROM satscores sa\nJOIN schools sc ON sa.cds = sc.CDSCode\nWHERE sa.AvgScrWrite > 499 \nAND sc.CharterNum IS NOT NULL\nORDER BY sa.AvgScrWrite DESC\t----- bird -----\tcalifornia_schools",
+    "18": "SELECT COUNT(*)\nFROM satscores s\nJOIN schools sch ON s.cds = sch.CDSCode\nWHERE s.NumTstTakr <= 250 \nAND s.NumTstTakr IS NOT NULL\nAND sch.FundingType = 'Directly funded'\nAND (s.cname = 'Fresno' OR s.dname LIKE '%Fresno%' OR sch.City = 'Fresno')\t----- bird -----\tcalifornia_schools",
+    "19": "SELECT T2.Phone\nFROM satscores T1\nINNER JOIN schools T2 ON T1.cds = T2.CDSCode\nORDER BY T1.AvgScrMath DESC\nLIMIT 1\t----- bird -----\tcalifornia_schools"
 }

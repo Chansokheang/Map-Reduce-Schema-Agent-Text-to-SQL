@@ -1,4 +1,22 @@
 {
     "0": "SELECT MAX(`Percent (%) Eligible Free (K-12)`)\nFROM frpm\nWHERE `County Name` = 'Alameda'\t----- bird -----\tcalifornia_schools",
-    "1": "SELECT `Percent (%) Eligible Free (Ages 5-17)`\nFROM frpm\nWHERE `Educational Option Type` = 'Continuation School'\nORDER BY `Percent (%) Eligible Free (Ages 5-17)` ASC\nLIMIT 3\t----- bird -----\tcalifornia_schools"
+    "1": "SELECT `Percent (%) Eligible Free (Ages 5-17)`\nFROM frpm\nWHERE `School Type` LIKE '%Continuation%'\n  AND `Percent (%) Eligible Free (Ages 5-17)` IS NOT NULL\nORDER BY `Percent (%) Eligible Free (Ages 5-17)` ASC\nLIMIT 3\t----- bird -----\tcalifornia_schools",
+    "2": "SELECT Zip\nFROM schools\nWHERE County = 'Fresno' \n  AND District = 'Fresno County Office of Education'\n  AND Charter = 1;\t----- bird -----\tcalifornia_schools",
+    "3": "SELECT T1.MailStreet\nFROM schools T1\nJOIN frpm T2 ON T1.CDSCode = T2.CDSCode\nORDER BY T2.`FRPM Count (K-12)` DESC\nLIMIT 1\t----- bird -----\tcalifornia_schools",
+    "4": "SELECT Phone\nFROM schools\nWHERE Charter = 1\nAND FundingType = 'Directly funded'\nAND OpenDate > '2000-01-01'\t----- bird -----\tcalifornia_schools",
+    "5": "SELECT COUNT(DISTINCT s.CDSCode)\nFROM schools s\nJOIN satscores sat ON s.CDSCode = sat.cds\nWHERE s.Virtual = 'F'\nAND sat.AvgScrMath > 400\t----- bird -----\tcalifornia_schools",
+    "6": "SELECT DISTINCT s.School\nFROM schools s\nJOIN satscores sat ON s.CDSCode = sat.cds\nLEFT JOIN frpm f ON s.CDSCode = f.CDSCode\nWHERE sat.NumTstTakr > 500\nAND (s.Magnet = 1 OR f.`Educational Option Type` = 'Magnet')\t----- bird -----\tcalifornia_schools",
+    "7": "SELECT s.Phone\nFROM schools s\nJOIN satscores sat ON s.CDSCode = sat.cds\nORDER BY sat.NumGE1500 DESC\nLIMIT 1\t----- bird -----\tcalifornia_schools",
+    "8": "SELECT s.NumTstTakr\nFROM satscores s\nJOIN frpm f ON s.cds = f.CDSCode\nWHERE f.`FRPM Count (K-12)` = (\n    SELECT MAX(`FRPM Count (K-12)`)\n    FROM frpm\n)\t----- bird -----\tcalifornia_schools",
+    "9": "SELECT COUNT(DISTINCT s.CDSCode)\nFROM schools s\nJOIN satscores sat ON s.CDSCode = sat.cds\nWHERE sat.AvgScrMath > 560\n  AND s.FundingType = 'Directly funded'\n  AND s.Charter = 1\t----- bird -----\tcalifornia_schools",
+    "10": "SELECT f.`FRPM Count (Ages 5-17)`\nFROM frpm f\nJOIN satscores s ON f.CDSCode = s.cds\nWHERE s.AvgScrRead IS NOT NULL\nORDER BY s.AvgScrRead DESC\nLIMIT 1\t----- bird -----\tcalifornia_schools",
+    "11": "SELECT DISTINCT CDSCode\nFROM frpm\nWHERE `Enrollment (K-12)` > 500\nUNION\nSELECT DISTINCT cds\nFROM satscores\nWHERE enroll12 > 500\t----- bird -----\tcalifornia_schools",
+    "12": "SELECT MAX(frpm.`Percent (%) Eligible Free (Ages 5-17)`)\nFROM frpm\nJOIN satscores ON frpm.CDSCode = satscores.cds\nWHERE satscores.NumTstTakr > 0 \n  AND CAST(satscores.NumGE1500 AS REAL) / satscores.NumTstTakr > 0.3\t----- bird -----\tcalifornia_schools",
+    "13": "SELECT Phone\nFROM schools\nORDER BY CDSCode\nLIMIT 3\t----- bird -----\tcalifornia_schools",
+    "14": "SELECT s.NCESSchool\nFROM frpm f\nJOIN schools s ON f.CDSCode = s.CDSCode\nORDER BY f.`Enrollment (Ages 5-17)` DESC\nLIMIT 5\t----- bird -----\tcalifornia_schools",
+    "15": "SELECT s.District\nFROM schools s\nJOIN satscores sat ON s.District = sat.dname\nWHERE s.StatusType = 'Active'\nGROUP BY s.District\nORDER BY AVG(sat.AvgScrRead) DESC\nLIMIT 1\t----- bird -----\tcalifornia_schools",
+    "16": "SELECT COUNT(*) \nFROM satscores \nWHERE cname = 'merged Alameda' AND NumTstTakr < 100\t----- bird -----\tcalifornia_schools",
+    "17": "SELECT s.CharterNum, st.sname, st.AvgScrWrite\nFROM satscores st\nJOIN schools s ON st.cds = s.CDSCode\nWHERE st.AvgScrWrite > 499\nORDER BY st.AvgScrWrite DESC\t----- bird -----\tcalifornia_schools",
+    "18": "SELECT COUNT(DISTINCT s.CDSCode)\nFROM schools s\nJOIN satscores sat ON s.CDSCode = sat.cds\nWHERE s.City = 'Fresno'\nAND s.FundingType = 'Directly funded'\nAND sat.NumTstTakr <= 250\t----- bird -----\tcalifornia_schools",
+    "19": "SELECT s.Phone\nFROM schools s\nJOIN satscores sat ON s.CDSCode = sat.cds\nORDER BY sat.AvgScrMath DESC\nLIMIT 1\t----- bird -----\tcalifornia_schools"
 }

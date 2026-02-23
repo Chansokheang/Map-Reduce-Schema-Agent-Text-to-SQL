@@ -1,4 +1,17 @@
 """
+================================================================================
+QA-SQL PIPELINE - USAGE INSTRUCTIONS
+================================================================================
+
+
+# EXAMPLE USAGE (after implementation):
+#   python -m src.pipeline -q 0                           # Run question 0
+#   python -m src.pipeline -q 5 -m claude-3-5-haiku-20241022  # Use Haiku model
+#   python -m src.pipeline -b --range 0 10               # Batch: questions 0-9
+#   python -m src.pipeline -d /path/to/data -o /path/to/output   # python -m src.pipeline -b --range 0 10 -d ./data/bird_data -o ./output/ver1
+#   python -m src.pipeline --threshold 0.6 --timeout 60
+
+================================================================================
 Main Pipeline Orchestrator
 
 Orchestrates the full QA-SQL workflow:
@@ -400,7 +413,8 @@ class QASQLPipeline:
     def run_batch(
         self,
         queries: list[dict[str, str]],
-        db_path: Path = None
+        db_path: Path = None,
+        start_index: int = 0
     ) -> list[PipelineResult]:
         """
         Run pipeline on multiple queries.
@@ -408,6 +422,7 @@ class QASQLPipeline:
         Args:
             queries: List of dicts with keys: question, db_id, evidence
             db_path: Optional database path override
+            start_index: Starting question index for output file naming (default: 0)
 
         Returns:
             List of PipelineResult objects
@@ -423,7 +438,10 @@ class QASQLPipeline:
             database_name = query.get("db_id", "")
             evidence = query.get("evidence", "")
 
-            print(f"[{idx + 1}/{total}] Processing: {nl_query[:80]}...")
+            # Use absolute question index (start_index + local idx)
+            absolute_idx = start_index + idx
+
+            print(f"[{idx + 1}/{total}] Processing Q{absolute_idx}: {nl_query[:70]}...")
 
             try:
                 result = self.run(
@@ -431,7 +449,7 @@ class QASQLPipeline:
                     database_name=database_name,
                     db_path=db_path,
                     evidence=evidence,
-                    question_index=idx
+                    question_index=absolute_idx
                 )
                 results.append(result)
 
@@ -464,12 +482,122 @@ class QASQLPipeline:
         return results
 
 
+def parse_args():
+    """Parse command line arguments."""
+    import argparse
+
+    parser = argparse.ArgumentParser(
+        description="QA-SQL Pipeline - Convert natural language to SQL",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  python -m src.pipeline -q 0                              # Run question 0
+  python -m src.pipeline -q 5 -m claude-3-5-haiku-20241022 # Use Haiku model
+  python -m src.pipeline -b --range 0 10                   # Batch: questions 0-9
+  python -m src.pipeline -d ./data/bird_data -o ./output/ver1
+  python -m src.pipeline --threshold 0.6 --timeout 60
+        """
+    )
+
+    # Basic options
+    parser.add_argument(
+        "-q", "--question",
+        type=int,
+        default=0,
+        help="Question index from dev.json (default: 0)"
+    )
+    parser.add_argument(
+        "-d", "--data-dir",
+        type=str,
+        default=None,
+        help="Path to BIRD data directory (default: data/bird_data)"
+    )
+    parser.add_argument(
+        "-o", "--output-dir",
+        type=str,
+        default=None,
+        help="Path to output directory (default: output/ver1)"
+    )
+    parser.add_argument(
+        "--db-path",
+        type=str,
+        default=None,
+        help="Direct path to SQLite database file"
+    )
+
+    # Model options
+    parser.add_argument(
+        "-m", "--model",
+        type=str,
+        default="claude-sonnet-4-5-20250929",
+        help="LLM model to use (default: claude-sonnet-4-5-20250929)"
+    )
+    parser.add_argument(
+        "-t", "--threshold",
+        type=float,
+        default=0.5,
+        help="Relevance threshold for schema agent (default: 0.5)"
+    )
+    parser.add_argument(
+        "--timeout",
+        type=float,
+        default=30.0,
+        help="SQL query timeout in seconds (default: 30)"
+    )
+    parser.add_argument(
+        "--max-workers",
+        type=int,
+        default=4,
+        help="Max parallel workers for schema agent (default: 4)"
+    )
+
+    # Batch mode options
+    parser.add_argument(
+        "-b", "--batch",
+        action="store_true",
+        help="Enable batch mode (process multiple questions)"
+    )
+    parser.add_argument(
+        "--start",
+        type=int,
+        default=0,
+        help="Start index for batch mode (default: 0)"
+    )
+    parser.add_argument(
+        "--end",
+        type=int,
+        default=None,
+        help="End index for batch mode (default: all)"
+    )
+    parser.add_argument(
+        "--range",
+        type=int,
+        nargs=2,
+        metavar=("START", "END"),
+        help="Process questions in range [START, END)"
+    )
+
+    # Other options
+    parser.add_argument(
+        "-v", "--verbose",
+        action="store_true",
+        help="Enable verbose output"
+    )
+
+    return parser.parse_args()
+
+
 def main():
-    """Run the pipeline on a sample question from BIRD dev.json."""
+    """Run the pipeline on questions from BIRD dev.json."""
     import sys
 
+    args = parse_args()
+
+    # Resolve paths
     base_dir = Path(__file__).parent.parent
-    dev_json_path = base_dir / "data" / "bird_data" / "dev.json"
+    data_dir = Path(args.data_dir) if args.data_dir else base_dir / "data" / "bird_data"
+    output_dir = Path(args.output_dir) if args.output_dir else base_dir / "output" / "ver1"
+    dev_json_path = data_dir / "dev.json"
 
     # Load dev.json
     if not dev_json_path.exists():
@@ -479,57 +607,116 @@ def main():
     with open(dev_json_path, "r", encoding="utf-8") as f:
         dev_data = json.load(f)
 
-    # Pick the first question (or specify via CLI arg)
-    question_idx = int(sys.argv[1]) if len(sys.argv) > 1 else 0
-    if question_idx >= len(dev_data):
-        print(f"Question index {question_idx} out of range (max: {len(dev_data) - 1})")
-        sys.exit(1)
-
-    entry = dev_data[question_idx]
-
-    print("=" * 70)
-    print("QA-SQL Pipeline")
-    print("=" * 70)
-    print(f"Question #{entry['question_id']}: {entry['question']}")
-    print(f"Database: {entry['db_id']}")
-    print(f"Evidence: {entry.get('evidence', '(none)')}")
-    print(f"Difficulty: {entry.get('difficulty', 'unknown')}")
-    print("=" * 70)
-
-    # Run pipeline
-    config = Config(data_dir=base_dir / "data" / "bird_data")
-    pipeline = QASQLPipeline(config=config)
-
-    result = pipeline.run(
-        nl_query=entry["question"],
-        database_name=entry["db_id"],
-        evidence=entry.get("evidence", ""),
-        question_index=question_idx
+    # Create config
+    config = Config(
+        data_dir=data_dir,
+        output_dir=output_dir,
+        llm_model=args.model,
+        relevance_threshold=args.threshold,
+        query_timeout=args.timeout,
+        max_workers=args.max_workers
     )
 
-    # Display results
-    print(f"\n{'=' * 70}")
-    print("RESULT")
-    print("=" * 70)
-    print(f"Generated SQL: {result.generated_sql}")
-    print(f"Confidence: {result.confidence:.2f}")
-    print(f"Reasoning: {result.judgment.reasoning}")
-    print(f"\nCandidates: {result.judgment.successful_candidates}/{result.judgment.total_candidates} successful")
+    pipeline = QASQLPipeline(config=config)
 
-    if result.metadata.get("last_resort_used"):
-        print(f"Last Resort: used (success={result.metadata.get('last_resort_success')})")
+    # Determine which questions to process
+    if args.batch:
+        # Batch mode
+        if args.range:
+            start_idx, end_idx = args.range
+        else:
+            start_idx = args.start
+            end_idx = args.end if args.end is not None else len(dev_data)
 
-    # Show timings
-    timings = result.metadata.get("timings", {})
-    print(f"\nTimings:")
-    for stage, ms in timings.items():
-        print(f"  {stage}: {ms:.0f}ms")
+        # Validate range
+        start_idx = max(0, start_idx)
+        end_idx = min(len(dev_data), end_idx)
 
-    # Compare with ground truth if available
-    if "SQL" in entry:
-        print(f"\nGround Truth SQL: {entry['SQL']}")
+        if start_idx >= end_idx:
+            print(f"Invalid range: [{start_idx}, {end_idx})")
+            sys.exit(1)
 
-    print("=" * 70)
+        print("=" * 70)
+        print("QA-SQL Pipeline - BATCH MODE")
+        print("=" * 70)
+        print(f"Data directory: {data_dir}")
+        print(f"Output directory: {output_dir}")
+        print(f"Model: {args.model}")
+        print(f"Questions: [{start_idx}, {end_idx}) ({end_idx - start_idx} total)")
+        print("=" * 70)
+
+        # Run batch
+        questions = dev_data[start_idx:end_idx]
+        results = pipeline.run_batch(
+            queries=questions,
+            db_path=Path(args.db_path) if args.db_path else None,
+            start_index=start_idx  # Pass absolute starting index for correct output naming
+        )
+
+        # Summary
+        successful = sum(1 for r in results if r.generated_sql)
+        print(f"\n{'=' * 70}")
+        print("BATCH COMPLETE")
+        print("=" * 70)
+        print(f"Processed: {len(results)} questions")
+        print(f"Successful: {successful}/{len(results)}")
+        print(f"Results saved to: {output_dir}")
+        print("=" * 70)
+
+    else:
+        # Single question mode
+        question_idx = args.question
+        if question_idx >= len(dev_data):
+            print(f"Question index {question_idx} out of range (max: {len(dev_data) - 1})")
+            sys.exit(1)
+
+        entry = dev_data[question_idx]
+
+        print("=" * 70)
+        print("QA-SQL Pipeline")
+        print("=" * 70)
+        print(f"Question #{entry['question_id']}: {entry['question']}")
+        print(f"Database: {entry['db_id']}")
+        print(f"Evidence: {entry.get('evidence', '(none)')}")
+        print(f"Difficulty: {entry.get('difficulty', 'unknown')}")
+        if args.verbose:
+            print(f"Data dir: {data_dir}")
+            print(f"Output dir: {output_dir}")
+            print(f"Model: {args.model}")
+        print("=" * 70)
+
+        # Run pipeline
+        result = pipeline.run(
+            nl_query=entry["question"],
+            database_name=entry["db_id"],
+            db_path=Path(args.db_path) if args.db_path else None,
+            evidence=entry.get("evidence", ""),
+            question_index=question_idx
+        )
+
+        # Display results
+        print(f"\n{'=' * 70}")
+        print("RESULT")
+        print("=" * 70)
+        print(f"Generated SQL: {result.generated_sql}")
+        print(f"Confidence: {result.confidence:.2f}")
+        print(f"Reasoning: {result.judgment.reasoning}")
+        print(f"\nCandidates: {result.judgment.successful_candidates}/{result.judgment.total_candidates} successful")
+
+        if result.metadata.get("last_resort_used"):
+            print(f"Last Resort: used (success={result.metadata.get('last_resort_success')})")
+
+        # Show timings
+        timings = result.metadata.get("timings", {})
+        print(f"\nTimings:")
+        for stage, ms in timings.items():
+            print(f"  {stage}: {ms:.0f}ms")
+
+        # Compare with ground truth if available
+        if "SQL" in entry:
+            print(f"\nGround Truth SQL: {entry['SQL']}")
+
+        print("=" * 70)
 
 
 if __name__ == "__main__":
