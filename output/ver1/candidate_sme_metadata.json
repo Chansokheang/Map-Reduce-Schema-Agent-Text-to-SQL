@@ -18,5 +18,10 @@
     "16": "SELECT COUNT(*)\nFROM schools s\nINNER JOIN satscores sat ON s.CDSCode = sat.cds\nWHERE s.County = 'Alameda' \nAND s.StatusType = 'Merged'\nAND sat.NumTstTakr < 100\t----- bird -----\tcalifornia_schools",
     "17": "SELECT sa.sname, sa.AvgScrWrite, sc.CharterNum\nFROM satscores sa\nJOIN schools sc ON sa.cds = sc.CDSCode\nWHERE sa.AvgScrWrite > 499 \nAND sc.CharterNum IS NOT NULL\nORDER BY sa.AvgScrWrite DESC\t----- bird -----\tcalifornia_schools",
     "18": "SELECT COUNT(*)\nFROM satscores s\nJOIN schools sch ON s.cds = sch.CDSCode\nWHERE s.NumTstTakr <= 250 \nAND s.NumTstTakr IS NOT NULL\nAND sch.FundingType = 'Directly funded'\nAND (s.cname = 'Fresno' OR s.dname LIKE '%Fresno%' OR sch.City = 'Fresno')\t----- bird -----\tcalifornia_schools",
-    "19": "SELECT T2.Phone\nFROM satscores T1\nINNER JOIN schools T2 ON T1.cds = T2.CDSCode\nORDER BY T1.AvgScrMath DESC\nLIMIT 1\t----- bird -----\tcalifornia_schools"
+    "19": "SELECT T2.Phone\nFROM satscores T1\nINNER JOIN schools T2 ON T1.cds = T2.CDSCode\nORDER BY T1.AvgScrMath DESC\nLIMIT 1\t----- bird -----\tcalifornia_schools",
+    "20": "SELECT COUNT(*)\nFROM frpm\nWHERE `County Name` = 'Amador' \nAND `Low Grade` = '9' \nAND `High Grade` = '12'\t----- bird -----\tcalifornia_schools",
+    "21": "SELECT COUNT(*)\nFROM frpm\nWHERE `County Name` = 'Los Angeles'\nAND `Free Meal Count (K-12)` > 500\nAND `FRPM Count (K-12)` < 700\t----- bird -----\tcalifornia_schools",
+    "22": "SELECT sname\nFROM satscores\nWHERE cname = 'Contra Costa'\nORDER BY NumTstTakr DESC\nLIMIT 1\t----- bird -----\tcalifornia_schools",
+    "23": "SELECT \n    s.School,\n    s.Street,\n    s.City,\n    s.State,\n    s.Zip\nFROM frpm f\nINNER JOIN schools s ON f.CDSCode = s.CDSCode\nWHERE ABS(f.`Enrollment (K-12)` - f.`Enrollment (Ages 5-17)`) > 30\t----- bird -----\tcalifornia_schools",
+    "24": "SELECT DISTINCT T3.School\nFROM frpm T1\nINNER JOIN satscores T2 ON T1.CDSCode = T2.cds\nINNER JOIN schools T3 ON T1.CDSCode = T3.CDSCode\nWHERE CAST(T1.`Free Meal Count (K-12)` AS REAL) / T1.`Enrollment (K-12)` > 0.1\nAND T2.NumGE1500 > 0\t----- bird -----\tcalifornia_schools"
 }

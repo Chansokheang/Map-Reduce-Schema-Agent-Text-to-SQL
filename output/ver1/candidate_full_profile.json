@@ -18,5 +18,10 @@
     "16": "SELECT COUNT(*)\nFROM satscores\nWHERE cname = 'merged Alameda' AND NumTstTakr < 100\t----- bird -----\tcalifornia_schools",
     "17": "SELECT s.CharterNum, ss.AvgScrWrite\nFROM satscores ss\nJOIN schools s ON ss.cds = s.CDSCode\nWHERE ss.AvgScrWrite > 499 AND s.CharterNum IS NOT NULL\nORDER BY ss.AvgScrWrite DESC\t----- bird -----\tcalifornia_schools",
     "18": "SELECT COUNT(*)\nFROM satscores s\nJOIN schools sc ON s.cname = sc.CDSCode\nWHERE sc.City = 'Fresno'\nAND sc.FundingType = 'Directly funded'\nAND s.NumTstTakr <= 250\t----- bird -----\tcalifornia_schools",
-    "19": "SELECT s.Phone\nFROM schools s\nJOIN satscores sat ON s.CDSCode = sat.cds\nORDER BY sat.AvgScrMath DESC\nLIMIT 1\t----- bird -----\tcalifornia_schools"
+    "19": "SELECT s.Phone\nFROM schools s\nJOIN satscores sat ON s.CDSCode = sat.cds\nORDER BY sat.AvgScrMath DESC\nLIMIT 1\t----- bird -----\tcalifornia_schools",
+    "20": "SELECT COUNT(*) FROM frpm WHERE `County Name` = 'Amador' AND `Low Grade` = '9' AND `High Grade` = '12'\t----- bird -----\tcalifornia_schools",
+    "21": "SELECT COUNT(*)\nFROM frpm\nWHERE `County Name` = 'Los Angeles'\n  AND `Free Meal Count (K-12)` > 500\n  AND `FRPM Count (K-12)` < 700\t----- bird -----\tcalifornia_schools",
+    "22": "SELECT sname\nFROM satscores\nWHERE cname = 'Contra Costa'\nORDER BY NumTstTakr DESC\nLIMIT 1\t----- bird -----\tcalifornia_schools",
+    "23": "SELECT s.School, s.Street\nFROM schools s\nINNER JOIN frpm f ON s.CDSCode = f.CDSCode\nWHERE ABS(f.`Enrollment (K-12)` - f.`Enrollment (Ages 5-17)`) > 30\t----- bird -----\tcalifornia_schools",
+    "24": "SELECT DISTINCT T1.`School Name`\nFROM frpm T1\nINNER JOIN satscores T2 ON T1.CDSCode = T2.cds\nWHERE T1.`Percent (%) Eligible Free (K-12)` > 0.1 \nAND T2.NumGE1500 >= 1\t----- bird -----\tcalifornia_schools"
 }
