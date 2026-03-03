@@ -74,6 +74,16 @@ def load_questions(db_id: str = "california_schools") -> list[dict]:
     return [q for q in all_questions if q["db_id"] == db_id]
 
 
+def clean_sql_input(sql: str) -> str:
+    """Clean SQL input by converting escaped characters to actual characters."""
+    # Replace literal \n with actual newlines
+    sql = sql.replace('\\n', '\n')
+    # Replace literal \t with actual tabs
+    sql = sql.replace('\\t', '\t')
+    # Strip leading/trailing whitespace
+    return sql.strip()
+
+
 def execute_sql(sql: str, db_path: Path = DB_PATH) -> tuple[pd.DataFrame | None, str | None]:
     """
     Execute SQL query and return results as DataFrame.
@@ -229,12 +239,13 @@ def main():
 
             # Process execution
             if execute_btn and user_sql.strip():
-                user_df, user_error = execute_sql(user_sql)
+                cleaned_sql = clean_sql_input(user_sql)
+                user_df, user_error = execute_sql(cleaned_sql)
 
                 # Store results in session state
                 st.session_state['user_df'] = user_df
                 st.session_state['user_error'] = user_error
-                st.session_state['last_user_sql'] = user_sql
+                st.session_state['last_user_sql'] = cleaned_sql
 
             # Display executed query for readability
             if 'last_user_sql' in st.session_state and st.session_state['last_user_sql']:

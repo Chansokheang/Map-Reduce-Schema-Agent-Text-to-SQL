@@ -67,7 +67,8 @@ class SchemaWorker:
         table_schema: dict[str, Any],
         query_components: list[dict[str, str]],
         profile: dict[str, Any] = None,
-        original_query: str = None
+        original_query: str = None,
+        evidence: str = None
     ) -> TableRelevance:
         """
         Verify if a table is relevant to the query.
@@ -78,6 +79,7 @@ class SchemaWorker:
             query_components: Decomposed query components
             profile: Optional profile with semantic information
             original_query: Original natural language query for context
+            evidence: Optional SME evidence/hints from BIRD dev.json
 
         Returns:
             TableRelevance with score and relevant columns
@@ -92,14 +94,26 @@ class SchemaWorker:
         columns = self._collect_columns(table_schema, table_profile)
         component_texts = self._normalize_components(query_components)
 
+        # Normalize query_components to ensure dict format
+        normalized_components = []
+        for comp in query_components:
+            if isinstance(comp, dict):
+                normalized_components.append(comp)
+            else:
+                normalized_components.append({
+                    "text": getattr(comp, "component_text", str(comp)),
+                    "type": getattr(comp, "component_type", "unknown")
+                })
+
         if self.llm_client:
             try:
                 llm_result = self._llm_table_relevance(
                     table_name,
                     table_readable_name,
                     columns,
-                    component_texts,
-                    original_query
+                    normalized_components,
+                    original_query,
+                    evidence
                 )
                 return self._build_table_relevance(
                     table_name,
@@ -239,7 +253,8 @@ class SchemaWorker:
         schema: dict[str, Any],
         query_components: list[dict[str, str]],
         profile: dict[str, Any] = None,
-        original_query: str = None
+        original_query: str = None,
+        evidence: str = None
     ) -> VerificationResult:
         """
         Verify all assigned tables.
@@ -252,6 +267,7 @@ class SchemaWorker:
             query_components: Decomposed query components
             profile: Optional database profile
             original_query: Original natural language query for context
+            evidence: Optional SME evidence/hints from BIRD dev.json
 
         Returns:
             VerificationResult with all table relevances
@@ -269,7 +285,8 @@ class SchemaWorker:
                     table_schema,
                     query_components,
                     profile,
-                    original_query
+                    original_query,
+                    evidence
                 )
             )
 
@@ -287,14 +304,15 @@ class SchemaWorker:
         schema: dict[str, Any],
         query_components: list[dict[str, str]],
         profile: dict[str, Any] = None,
-        original_query: str = None
+        original_query: str = None,
+        evidence: str = None
     ) -> VerificationResult:
         """
         Callable interface for parallel execution.
 
         Allows worker to be used with ThreadPoolExecutor.
         """
-        return self.verify_tables(assigned_tables, schema, query_components, profile, original_query)
+        return self.verify_tables(assigned_tables, schema, query_components, profile, original_query, evidence)
 
     def _collect_columns(
         self,
@@ -350,8 +368,9 @@ class SchemaWorker:
         table_name: str,
         table_readable_name: str,
         columns: list[dict[str, Any]],
-        component_texts: list[str],
-        original_query: str = None
+        query_components: list[dict[str, str]],
+        original_query: str = None,
+        evidence: str = None
     ) -> dict[str, Any]:
         column_lines = []
         for col in columns:
@@ -365,12 +384,32 @@ class SchemaWorker:
                 parts.append(f"desc: {description}")
             column_lines.append(" - " + " | ".join(parts))
 
-        # Use original query if available, otherwise use components
-        query_context = original_query if original_query else ", ".join(component_texts)
+        # Format semantic components with their types
+        component_lines = []
+        for comp in query_components:
+            comp_text = comp.get("text", "")
+            comp_type = comp.get("type", "unknown")
+            if comp_text:
+                component_lines.append(f"  - [{comp_type}] {comp_text}")
+        components_str = chr(10).join(component_lines) if component_lines else "  - (no components)"
+
+        # Use original query as main question
+        question_str = original_query if original_query else ", ".join(
+            comp.get("text", "") for comp in query_components
+        )
+
+        # Format evidence section
+        evidence_str = evidence if evidence else "No additional hints provided."
 
         prompt = f"""Determine if this table is REQUIRED to answer the following question.
 
-Question: "{query_context}"
+Question: "{question_str}"
+
+EVIDENCE (CRITICAL - contains hints about which tables/columns to use):
+{evidence_str}
+
+Semantic Components (extracted from the question):
+{components_str}
 
 Table: {table_name}
 Table description: {table_readable_name}
@@ -387,13 +426,28 @@ Return ONLY JSON:
 
 STRICT Scoring Rules:
 - 1.0: Table is DIRECTLY REQUIRED - the question asks for data that ONLY this table contains.
+       Check if any [entity] or [filter] component matches this table's data.
+       IMPORTANT: If the EVIDENCE mentions a column name that exists in THIS table, score 1.0!
 - 0.5: Table MAY be needed - for JOINs or foreign key lookups, but not the main data source.
 - 0.0: Table is NOT needed - the question does not require any data from this table.
+
+EVIDENCE Guidelines (CRITICAL):
+- If evidence mentions a column like "`Free Meal Count (K-12)`" and this table has that column → score 1.0
+- If evidence mentions "table frpm" or similar table name hints → use that to determine relevance
+- If evidence contains a formula like "rate = A / B", check if this table has columns A or B
+- Evidence is from domain experts - trust it for column/table identification
+
+Component Type Guidelines:
+- [entity]: Look for tables that store this type of data
+- [filter]: Look for columns that can filter by this condition
+- [aggregation]: Consider if this table has data to aggregate
+- [projection]: Check if this table has the requested output fields
 
 Examples:
 - Question about "free meal rates" → frpm table = 1.0, satscores table = 0.0
 - Question about "SAT scores" → satscores table = 1.0, frpm table = 0.0
 - Question needing school info for JOIN → schools table = 0.5
+- Evidence says "`NumGE1500`" → satscores table = 1.0 (has that column)
 
 Be strict: if the question doesn't need data from "{table_readable_name}", score 0.0."""
 

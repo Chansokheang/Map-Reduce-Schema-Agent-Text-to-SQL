@@ -32,7 +32,8 @@ from .processing import InputProcessor, ProcessedInput
 from .agents import SchemaManager
 from .generation import CandidateGenerator, SQLCandidate, PromptBuilder
 from .selection import SQLExecutor, SQLJudge, ExecutionResult, JudgmentResult
-from .utils import LLMClient, Config
+from .utils import Config
+from .utils.llm_client import create_llm_client
 
 
 @dataclass
@@ -77,7 +78,23 @@ class QASQLPipeline:
 
     def initialize(self):
         """Initialize all pipeline components."""
-        self.llm_client = LLMClient(model=self.config.llm_model)
+        # Create LLM client based on provider config
+        if self.config.llm_provider == "ollama":
+            self.llm_client = create_llm_client(
+                provider="ollama",
+                model=self.config.ollama_model,
+                ollama_base_url=self.config.ollama_base_url
+            )
+        elif self.config.llm_provider == "openai":
+            self.llm_client = create_llm_client(
+                provider="openai",
+                model=self.config.openai_model
+            )
+        else:
+            self.llm_client = create_llm_client(
+                provider="anthropic",
+                model=self.config.llm_model
+            )
 
         self.input_processor = InputProcessor(
             schema_dir=self.config.schema_dir,
@@ -302,6 +319,7 @@ class QASQLPipeline:
             nl_query=nl_query,
             schema=schema,
             profile=profile,
+            evidence=evidence,
             relevance_threshold=self.config.relevance_threshold
         )
         metadata["timings"]["schema_agent_ms"] = (time.perf_counter() - t0) * 1000
@@ -491,9 +509,20 @@ def parse_args():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
+  # Using Claude (default)
   python -m src.pipeline -q 0                              # Run question 0
   python -m src.pipeline -q 5 -m claude-3-5-haiku-20241022 # Use Haiku model
   python -m src.pipeline -b --range 0 10                   # Batch: questions 0-9
+
+  # Using OpenAI
+  python -m src.pipeline -q 0 --provider openai --openai-model gpt-4o
+  python -m src.pipeline -b --range 0 10 --provider openai --openai-model gpt-4o-mini
+
+  # Using Ollama (local LLM)
+  python -m src.pipeline -q 0 --provider ollama --ollama-model llama3.2
+  python -m src.pipeline -b --range 0 10 --provider ollama --ollama-model mistral
+
+  # Other options
   python -m src.pipeline -d ./data/bird_data -o ./output/ver1
   python -m src.pipeline --threshold 0.6 --timeout 60
         """
@@ -525,12 +554,37 @@ Examples:
         help="Direct path to SQLite database file"
     )
 
-    # Model options
+    # LLM Provider options
+    parser.add_argument(
+        "--provider",
+        type=str,
+        choices=["anthropic", "openai", "ollama"],
+        default="anthropic",
+        help="LLM provider (default: anthropic)"
+    )
     parser.add_argument(
         "-m", "--model",
         type=str,
         default="claude-sonnet-4-5-20250929",
-        help="LLM model to use (default: claude-sonnet-4-5-20250929)"
+        help="LLM model for Anthropic (default: claude-sonnet-4-5-20250929)"
+    )
+    parser.add_argument(
+        "--openai-model",
+        type=str,
+        default="gpt-4o-mini",
+        help="Model name for OpenAI (default: gpt-4o-mini)"
+    )
+    parser.add_argument(
+        "--ollama-model",
+        type=str,
+        default="llama3.2",
+        help="Model name for Ollama (default: llama3.2)"
+    )
+    parser.add_argument(
+        "--ollama-url",
+        type=str,
+        default="http://localhost:11434",
+        help="Ollama server URL (default: http://localhost:11434)"
     )
     parser.add_argument(
         "-t", "--threshold",
@@ -611,7 +665,11 @@ def main():
     config = Config(
         data_dir=data_dir,
         output_dir=output_dir,
+        llm_provider=args.provider,
         llm_model=args.model,
+        openai_model=args.openai_model,
+        ollama_base_url=args.ollama_url,
+        ollama_model=args.ollama_model,
         relevance_threshold=args.threshold,
         query_timeout=args.timeout,
         max_workers=args.max_workers
@@ -641,7 +699,13 @@ def main():
         print("=" * 70)
         print(f"Data directory: {data_dir}")
         print(f"Output directory: {output_dir}")
-        print(f"Model: {args.model}")
+        print(f"Provider: {args.provider}")
+        if args.provider == "ollama":
+            print(f"Model: {args.ollama_model} @ {args.ollama_url}")
+        elif args.provider == "openai":
+            print(f"Model: {args.openai_model}")
+        else:
+            print(f"Model: {args.model}")
         print(f"Questions: [{start_idx}, {end_idx}) ({end_idx - start_idx} total)")
         print("=" * 70)
 
@@ -682,7 +746,13 @@ def main():
         if args.verbose:
             print(f"Data dir: {data_dir}")
             print(f"Output dir: {output_dir}")
-            print(f"Model: {args.model}")
+            print(f"Provider: {args.provider}")
+            if args.provider == "ollama":
+                print(f"Model: {args.ollama_model} @ {args.ollama_url}")
+            elif args.provider == "openai":
+                print(f"Model: {args.openai_model}")
+            else:
+                print(f"Model: {args.model}")
         print("=" * 70)
 
         # Run pipeline

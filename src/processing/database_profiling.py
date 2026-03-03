@@ -1,10 +1,11 @@
 import json
 import os
 from pathlib import Path
-from anthropic import Anthropic
 
-# Initialize Anthropic client
-client = Anthropic()
+from src.utils.llm_client import create_llm_client, BaseLLMClient
+
+# Global LLM client (initialized in main())
+_llm_client: BaseLLMClient = None
 
 
 def generate_column_description(
@@ -62,13 +63,13 @@ Bad examples (too long/technical):
 
 Return ONLY the description."""
 
-    response = client.messages.create(
-        model="claude-sonnet-4-5-20250929",
+    response = _llm_client.complete(
+        prompt=prompt,
         max_tokens=150,
-        messages=[{"role": "user", "content": prompt}]
+        temperature=0.0
     )
 
-    return response.content[0].text.strip()
+    return response.strip()
 
 
 def process_schema(schema_path: Path, output_dir: Path):
@@ -156,16 +157,56 @@ def process_schema(schema_path: Path, output_dir: Path):
 
 
 def main():
+    global _llm_client
+
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Generate database column descriptions using LLM")
+    parser.add_argument(
+        "--provider",
+        choices=["anthropic", "ollama"],
+        default=os.environ.get("LLM_PROVIDER", "anthropic"),
+        help="LLM provider (default: anthropic, or set LLM_PROVIDER env var)"
+    )
+    parser.add_argument(
+        "--model",
+        default=None,
+        help="Model name (default: claude-sonnet-4-5-20250929 for anthropic, llama3.2 for ollama)"
+    )
+    parser.add_argument(
+        "--ollama-url",
+        default=os.environ.get("OLLAMA_BASE_URL", "http://localhost:11434"),
+        help="Ollama server URL (default: http://localhost:11434)"
+    )
+    args = parser.parse_args()
+
     base_dir = Path(__file__).parent.parent.parent
     schema_dir = base_dir / "data" / "bird_data" / "schemas"
     output_dir = base_dir / "data" / "bird_data" / "descriptions"
 
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    # Check for API key
-    if not os.environ.get("ANTHROPIC_API_KEY"):
-        print("Error: ANTHROPIC_API_KEY environment variable not set")
-        print("Set it with: export ANTHROPIC_API_KEY='your-key-here'")
+    # Initialize LLM client based on provider
+    if args.provider == "anthropic":
+        if not os.environ.get("ANTHROPIC_API_KEY"):
+            print("Error: ANTHROPIC_API_KEY environment variable not set")
+            print("Set it with: export ANTHROPIC_API_KEY='your-key-here'")
+            return
+        model = args.model or "claude-sonnet-4-5-20250929"
+    else:
+        model = args.model or "llama3.2"
+
+    print(f"Using LLM provider: {args.provider}")
+    print(f"Model: {model}")
+
+    try:
+        _llm_client = create_llm_client(
+            provider=args.provider,
+            model=model,
+            ollama_base_url=args.ollama_url
+        )
+    except (ValueError, ConnectionError) as e:
+        print(f"Error initializing LLM client: {e}")
         return
 
     schema_files = list(schema_dir.glob("*_schema.json"))

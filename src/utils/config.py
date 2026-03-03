@@ -25,9 +25,17 @@ class Config:
     output_dir: Path = Path("output/ver1")
 
     # LLM Settings
+    llm_provider: str = "anthropic"  # "anthropic", "openai", or "ollama"
     llm_model: str = "claude-sonnet-4-5-20250929"
     llm_max_tokens: int = 2048
     llm_temperature: float = 0.0
+
+    # OpenAI Settings (used when llm_provider="openai")
+    openai_model: str = "gpt-4o-mini"  # Default OpenAI model
+
+    # Ollama Settings (used when llm_provider="ollama")
+    ollama_base_url: str = "http://localhost:11434"
+    ollama_model: str = "llama3.2"  # Default Ollama model
 
     # Schema Agent Settings
     max_workers: int = 4

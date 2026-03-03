@@ -266,6 +266,7 @@ class PromptBuilder:
         Format focused schema (Strategy 4: Focused Schema).
 
         Only includes relevant tables from Map-Reduce Schema Agent.
+        Includes relevance scores to help prioritize tables.
 
         Args:
             focused_schema: Filtered schema from Map-Reduce Agent
@@ -279,20 +280,15 @@ class PromptBuilder:
 
         tables = []
         for table_name, table_info in tables_data.items():
-            # Add relevance info as comment
-            relevance = table_info.get("relevance_score", 0)
-            reason = table_info.get("reason", "")
-
-            header = f"-- Relevance: {relevance:.1f}"
-            if reason:
-                header += f" | {reason}"
-
+            relevance = table_info.get("relevance_score", 1.0)
             table_str = self.format_table_schema(
                 table_name,
                 table_info,
                 include_descriptions=True,
                 include_sme=False
             )
+            # Add relevance score header
+            header = f"-- Relevance: {relevance:.2f}"
             tables.append(f"{header}\n{table_str}")
 
         return "\n\n".join(tables)
@@ -306,7 +302,7 @@ class PromptBuilder:
         Format focused schema with profile descriptions (Strategy 5: Full Profile).
 
         Combines:
-        - Focused schema (relevant tables only)
+        - Focused schema (relevant tables only) with relevance scores
         - Column descriptions from profile
 
         Args:
@@ -324,13 +320,7 @@ class PromptBuilder:
         tables = []
 
         for table_name, table_info in tables_data.items():
-            # Add relevance info as comment
-            relevance = table_info.get("relevance_score", 0)
-            reason = table_info.get("reason", "")
-
-            header = f"-- Relevance: {relevance:.1f}"
-            if reason:
-                header += f" | {reason}"
+            relevance = table_info.get("relevance_score", 1.0)
 
             # Merge profile descriptions into focused schema
             merged_info = dict(table_info)
@@ -364,6 +354,8 @@ class PromptBuilder:
                 include_descriptions=True,
                 include_sme=False
             )
+            # Add relevance score header
+            header = f"-- Relevance: {relevance:.2f}"
             tables.append(f"{header}\n{table_str}")
 
         return "\n\n".join(tables)
@@ -467,7 +459,7 @@ class PromptBuilder:
             strategy: Which context strategy to use
             focused_schema: Filtered schema (for FOCUSED_SCHEMA strategy)
             profile: Minimal profile with descriptions
-            evidence: SME evidence/hints from BIRD dev.json (for SME_METADATA and FULL_PROFILE)
+            evidence: SME evidence/hints from BIRD dev.json (passed to ALL strategies)
 
         Returns:
             Dictionary with 'system' and 'user' prompts
@@ -511,20 +503,15 @@ class PromptBuilder:
             strategy_note = "Default full schema."
 
         # Build user prompt using strategy-specific template
-        # Handle evidence for SME_METADATA and FULL_PROFILE strategies
+        # Evidence is now passed to ALL strategies (not just SME_METADATA and FULL_PROFILE)
         evidence_str = evidence if evidence else "No additional hints provided."
 
-        if strategy in [ContextStrategy.SME_METADATA, ContextStrategy.FULL_PROFILE]:
-            user_prompt = user_template.format(
-                schema=schema_str,
-                question=nl_query,
-                evidence=evidence_str
-            )
-        else:
-            user_prompt = user_template.format(
-                schema=schema_str,
-                question=nl_query
-            )
+        # All strategies now use evidence
+        user_prompt = user_template.format(
+            schema=schema_str,
+            question=nl_query,
+            evidence=evidence_str
+        )
 
         return {
             "system": system_prompt,

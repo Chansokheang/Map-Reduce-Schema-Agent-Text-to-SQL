@@ -334,7 +334,8 @@ class SchemaManager:
         self,
         decomposed_query: DecomposedQuery,
         schema: dict[str, Any],
-        profile: dict[str, Any] = None
+        profile: dict[str, Any] = None,
+        evidence: str = None
     ) -> list[Any]:
         """
         Coordinate parallel verification workers.
@@ -346,6 +347,7 @@ class SchemaManager:
             decomposed_query: The decomposed query
             schema: Full database schema
             profile: Optional database profile
+            evidence: Optional SME evidence/hints from BIRD dev.json
 
         Returns:
             List of VerificationResult from all workers
@@ -384,7 +386,8 @@ class SchemaManager:
                     schema,
                     query_components,
                     profile,
-                    original_query  # Pass original query for better context
+                    original_query,  # Pass original query for better context
+                    evidence  # Pass evidence for table relevance hints
                 )
                 futures.append((table_name, future))
 
@@ -490,6 +493,7 @@ class SchemaManager:
         nl_query: str,
         schema: dict[str, Any],
         profile: dict[str, Any] = None,
+        evidence: str = None,
         relevance_threshold: float = 0.50
     ) -> dict[str, Any]:
         """
@@ -503,6 +507,7 @@ class SchemaManager:
             nl_query: Natural language query
             schema: Full database schema
             profile: Optional database profile for enhanced matching
+            evidence: Optional SME evidence/hints from BIRD dev.json
             relevance_threshold: Minimum relevance score for tables (default 0.50)
 
         Returns:
@@ -518,7 +523,8 @@ class SchemaManager:
         verification_results = self.coordinate_workers(
             decomposed_query=decomposed_query,
             schema=schema,
-            profile=profile
+            profile=profile,
+            evidence=evidence
         )
 
         # Step 3: Aggregate results into focused schema (Reduce Function)
