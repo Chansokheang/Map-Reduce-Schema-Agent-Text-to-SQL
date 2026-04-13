@@ -22,7 +22,7 @@ PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 DB_ROOT_PATH="${PROJECT_DIR}/data/bird_data/dev_databases/"
 DIFF_JSON_PATH="${PROJECT_DIR}/data/bird_data/dev.json"
 GROUND_TRUTH_PATH="${PROJECT_DIR}/data/bird_data/"
-OUTPUT_DIR="${PROJECT_DIR}/output/claude_v3/"
+OUTPUT_DIR="${PROJECT_DIR}/output/final/"
 FILE_NAME=""
 EVAL_ALL=true
 EVAL_TYPE="acc"
@@ -31,7 +31,7 @@ META_TIME_OUT=30.0
 ITERATE_NUM=100
 DATA_MODE="dev"
 START_IDX="0"
-END_IDX="40"
+END_IDX="1533"
 
 # All prediction files to evaluate
 ALL_FILES=(
@@ -222,7 +222,7 @@ echo "QA-SQL Evaluation"
 echo "=============================================="
 echo "Output directory: ${OUTPUT_DIR}"
 echo "Database path:    $DB_ROOT_PATH"
-echo "Ground truth:     ${GROUND_TRUTH_PATH}dev_gold.sql"
+echo "Ground truth:     ${GROUND_TRUTH_PATH}dev.sql"
 echo "Difficulty file:  $DIFF_JSON_PATH"
 echo "Eval type:        $EVAL_TYPE"
 echo "CPUs:             $NUM_CPUS"

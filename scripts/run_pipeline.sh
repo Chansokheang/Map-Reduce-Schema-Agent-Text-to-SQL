@@ -9,8 +9,10 @@
 #   ./scripts/run_pipeline.sh -b 0 10            # Batch mode: questions 0-9
 #   ./scripts/run_pipeline.sh --ollama           # Use Ollama instead of Claude
 #   ./scripts/run_pipeline.sh --ollama -m mistral # Use specific Ollama model
-#  ./scripts/run_pipeline.sh -t 0.6             # Custom relevance threshold
+#   ./scripts/run_pipeline.sh -t 0.6             # Custom relevance threshold
+#   ./scripts/run_pipeline.sh --headless         # Use Claude Max via claude-code-headless
 # ./scripts/run_pipeline.sh --ollama -m qwen2.5-coder:32b -b 10 11
+# sh ./run_pipeline.sh --headless -b 300 301
 # =============================================================================
 
 set -e
@@ -30,8 +32,8 @@ THRESHOLD=0.5
 TIMEOUT=30
 MAX_WORKERS=4
 VERBOSE=false
-DATA_DIR=""
-OUTPUT_DIR="./output/claude_v3/" 
+DATA_DIR="./data/bird_data/"
+OUTPUT_DIR="./output/final/" 
 
 # Colors for output
 RED='\033[0;31m'
@@ -53,6 +55,7 @@ show_help() {
     echo "  --anthropic           Use Anthropic Claude API (default)"
     echo "  --openai              Use OpenAI API"
     echo "  --ollama              Use Ollama local LLM"
+    echo "  --headless            Use Claude Max via claude-code-headless (no API key needed)"
     echo "  -m, --model MODEL     Model name (provider-specific)"
     echo "  --ollama-url URL      Ollama server URL (default: http://localhost:11434)"
     echo ""
@@ -97,6 +100,10 @@ while [[ $# -gt 0 ]]; do
             ;;
         --ollama)
             PROVIDER="ollama"
+            shift
+            ;;
+        --headless)
+            PROVIDER="headless"
             shift
             ;;
         -m|--model)
@@ -183,6 +190,10 @@ elif [[ "$PROVIDER" == "openai" ]]; then
         MODEL="$OPENAI_MODEL"
     fi
     echo -e "${GREEN}Using OpenAI: $MODEL${NC}"
+elif [[ "$PROVIDER" == "headless" ]]; then
+    # No API key needed - uses Claude Max subscription via claude-code-headless
+    MODEL="claude-max"
+    echo -e "${GREEN}Using Claude Max via claude-code-headless (no API key needed)${NC}"
 else
     # Set default model for Ollama
     if [[ -z "$MODEL" ]]; then
@@ -206,6 +217,9 @@ if [[ "$PROVIDER" == "anthropic" ]]; then
     CMD="$CMD -m $MODEL"
 elif [[ "$PROVIDER" == "openai" ]]; then
     CMD="$CMD --openai-model $MODEL"
+elif [[ "$PROVIDER" == "headless" ]]; then
+    # headless provider doesn't need model parameter
+    :
 else
     CMD="$CMD --ollama-model $MODEL --ollama-url $OLLAMA_URL"
 fi
