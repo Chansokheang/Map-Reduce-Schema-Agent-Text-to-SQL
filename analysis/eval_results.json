@@ -1,0 +1,80 @@
+{
+  "QA-SQL (Selected)": {
+    "file": "selected.json",
+    "simple": 0.0,
+    "moderate": 0.0,
+    "challenging": 0.0,
+    "overall": 0.0,
+    "counts": {
+      "simple": 925,
+      "moderate": 464,
+      "challenging": 145,
+      "total": 1534
+    }
+  },
+  "Full Schema": {
+    "file": "candidate_full_schema.json",
+    "simple": 0.0,
+    "moderate": 0.0,
+    "challenging": 0.0,
+    "overall": 0.0,
+    "counts": {
+      "simple": 925,
+      "moderate": 464,
+      "challenging": 145,
+      "total": 1534
+    }
+  },
+  "SME Metadata": {
+    "file": "candidate_sme_metadata.json",
+    "simple": 0.0,
+    "moderate": 0.0,
+    "challenging": 0.0,
+    "overall": 0.0,
+    "counts": {
+      "simple": 925,
+      "moderate": 464,
+      "challenging": 145,
+      "total": 1534
+    }
+  },
+  "Minimal Profile": {
+    "file": "candidate_minimal_profile.json",
+    "simple": 0.0,
+    "moderate": 0.0,
+    "challenging": 0.0,
+    "overall": 0.0,
+    "counts": {
+      "simple": 925,
+      "moderate": 464,
+      "challenging": 145,
+      "total": 1534
+    }
+  },
+  "Focused Schema": {
+    "file": "candidate_focused_schema.json",
+    "simple": 0.0,
+    "moderate": 0.0,
+    "challenging": 0.0,
+    "overall": 0.0,
+    "counts": {
+      "simple": 925,
+      "moderate": 464,
+      "challenging": 145,
+      "total": 1534
+    }
+  },
+  "Full Profile": {
+    "file": "candidate_full_profile.json",
+    "simple": 0.0,
+    "moderate": 0.0,
+    "challenging": 0.0,
+    "overall": 0.0,
+    "counts": {
+      "simple": 925,
+      "moderate": 464,
+      "challenging": 145,
+      "total": 1534
+    }
+  }
+}

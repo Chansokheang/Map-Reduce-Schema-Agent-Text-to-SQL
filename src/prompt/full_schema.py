@@ -43,7 +43,8 @@ Rules:
 6. Use appropriate JOINs when multiple tables are needed
 7. Pay attention to column names - use them exactly as shown in schema
 8. Do NOT use DISTINCT - it is almost never needed. Only use DISTINCT if the question explicitly asks for "unique", "distinct", or "different" values
-9. Return only the SQL query, nothing else""",
+9. Return only the SQL query, nothing else
+10. IMPORTANT: For column names with spaces or special characters, use SQUARE BRACKETS (not backticks or double quotes). Example: SELECT [Free Meal Count (K-12)] FROM frpm""",
 
     "user_template": """Database Schema:
 {schema}

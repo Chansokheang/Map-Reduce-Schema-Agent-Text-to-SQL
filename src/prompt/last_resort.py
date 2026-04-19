@@ -26,7 +26,8 @@ Rules:
 3. Use EXACT column and table names from the schema
 4. Learn from ALL the errors below to avoid the same mistakes
 5. Do NOT use DISTINCT unless the question explicitly asks for unique/distinct values
-6. Return only the SQL query, nothing else""",
+6. Return only the SQL query, nothing else
+7. IMPORTANT: For column names with spaces or special characters, use SQUARE BRACKETS (not backticks or double quotes). Example: SELECT [Free Meal Count (K-12)] FROM frpm""",
 
     "user_template": """Question: {question}
 

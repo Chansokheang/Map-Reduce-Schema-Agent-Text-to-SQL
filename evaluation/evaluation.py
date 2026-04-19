@@ -91,9 +91,11 @@ def package_sqls(sql_path, db_root_path, mode='gpt', data_mode='dataset', file_n
     elif mode == 'gt':
         # Ground truth SQL file path
         if data_mode == 'test':
-            file_path = sql_path + 'test' + '_gold.sql'
+            file_path = sql_path + 'test' + '.sql'
+            # file_path = sql_path + 'test' + '_gold.sql'
         else:
-            file_path = sql_path + 'dev' + '_gold.sql'
+            # file_path = sql_path + 'dev' + '_gold.sql'
+            file_path = sql_path + 'dev' + '.sql'
             
         print("Using ground truth file:", file_path)
         sqls = open(file_path)

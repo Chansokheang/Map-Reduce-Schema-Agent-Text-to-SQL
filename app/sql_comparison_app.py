@@ -61,13 +61,13 @@ st.markdown("""
 
 # Paths - Support both local and Docker environments
 # DATA_DIR = Path(os.environ.get("DATA_DIR", Path(__file__).parent.parent / "data"))
-DB_PATH = Path(os.environ.get("DB_PATH", Path(__file__).parent / "california_schools.sqlite"))
+DB_PATH = Path(os.environ.get("DB_PATH", Path(__file__).parent / "superhero.sqlite"))
 DEV_JSON_PATH = Path(os.environ.get("DB_PATH", Path(__file__).parent / "dev.json"))
 # DEV_JSON_PATH = DATA_DIR / "bird_data" / "dev.json"
 
 
 @st.cache_data
-def load_questions(db_id: str = "california_schools") -> list[dict]:
+def load_questions(db_id: str = "superhero") -> list[dict]:
     """Load questions for a specific database from dev.json."""
     with open(DEV_JSON_PATH, "r", encoding="utf-8") as f:
         all_questions = json.load(f)
@@ -100,6 +100,25 @@ def execute_sql(sql: str, db_path: Path = DB_PATH) -> tuple[pd.DataFrame | None,
         return None, str(e)
 
 
+def make_unique_columns(df: pd.DataFrame) -> pd.DataFrame:
+    """Return a copy with unique column names for display."""
+    if df.columns.is_unique:
+        return df
+    counts: dict[str, int] = {}
+    new_cols: list[str] = []
+    for col in df.columns:
+        col_name = str(col)
+        if col_name in counts:
+            counts[col_name] += 1
+            new_cols.append(f"{col_name}_{counts[col_name]}")
+        else:
+            counts[col_name] = 1
+            new_cols.append(col_name)
+    display_df = df.copy()
+    display_df.columns = new_cols
+    return display_df
+
+
 def compare_results(df1: pd.DataFrame | None, df2: pd.DataFrame | None) -> dict:
     """Compare two DataFrames and return comparison metrics."""
     if df1 is None or df2 is None:
@@ -118,8 +137,10 @@ def compare_results(df1: pd.DataFrame | None, df2: pd.DataFrame | None) -> dict:
         df2_values = df2.values.tolist()
 
         # Sort both for comparison (in case order differs)
-        df1_sorted = sorted([tuple(row) for row in df1_values])
-        df2_sorted = sorted([tuple(row) for row in df2_values])
+        # Use str() conversion for sort key to handle None/mixed types safely
+        sort_key = lambda row: [str(x) if x is not None else '' for x in row]
+        df1_sorted = sorted([tuple(row) for row in df1_values], key=sort_key)
+        df2_sorted = sorted([tuple(row) for row in df2_values], key=sort_key)
 
         if df1_sorted == df2_sorted:
             return {"match": True, "reason": "Results match!"}
@@ -135,7 +156,7 @@ def display_result(df: pd.DataFrame | None, error: str | None, title: str):
         st.error(f"Error: {error}")
     elif df is not None:
         st.write(f"**Rows:** {len(df)} | **Columns:** {len(df.columns)}")
-        st.dataframe(df, use_container_width=True, height=300)
+        st.dataframe(make_unique_columns(df), use_container_width=True, height=300)
     else:
         st.warning("No results")
 
@@ -145,10 +166,10 @@ def main():
     st.markdown("Compare your SQL queries against ground truth from the BIRD benchmark")
 
     # Load questions
-    questions = load_questions("california_schools")
+    questions = load_questions("superhero")
 
     if not questions:
-        st.error("No questions found for california_schools database")
+        st.error("No questions found for superhero database")
         return
 
     # Sidebar - Question selector
@@ -178,11 +199,40 @@ def main():
         st.sidebar.warning("No questions match the selected filters")
         return
 
+    question_labels = list(question_options.keys())
+
+    # Initialize or clamp question index in session state
+    if 'question_index' not in st.session_state:
+        st.session_state['question_index'] = 0
+    st.session_state['question_index'] = min(
+        st.session_state['question_index'], len(question_labels) - 1
+    )
+
+    # Navigation buttons
+    nav_col1, nav_col2, nav_col3 = st.sidebar.columns([1, 1, 1])
+    with nav_col1:
+        if st.button("−", disabled=st.session_state['question_index'] == 0, use_container_width=True):
+            st.session_state['question_index'] -= 1
+            st.rerun()
+    with nav_col2:
+        st.markdown(
+            f"<div style='text-align:center;padding-top:6px'>{st.session_state['question_index'] + 1}/{len(question_labels)}</div>",
+            unsafe_allow_html=True
+        )
+    with nav_col3:
+        if st.button("+", disabled=st.session_state['question_index'] == len(question_labels) - 1, use_container_width=True):
+            st.session_state['question_index'] += 1
+            st.rerun()
+
     selected_label = st.sidebar.selectbox(
         "Select a question:",
-        options=list(question_options.keys()),
-        index=0
+        options=question_labels,
+        index=st.session_state['question_index']
     )
+    # Sync selectbox changes back to index
+    new_index = question_labels.index(selected_label)
+    if new_index != st.session_state['question_index']:
+        st.session_state['question_index'] = new_index
 
     selected_id = question_options[selected_label]
     selected_question = next(q for q in filtered_questions if q["question_id"] == selected_id)
@@ -305,7 +355,7 @@ def main():
 
     with tab2:
         st.header("Question Browser")
-        st.markdown("Browse all questions for the California Schools database")
+        st.markdown("Browse all questions for the superhero database")
 
         # Display questions table
         questions_df = pd.DataFrame([
@@ -359,11 +409,11 @@ def main():
                 if error:
                     st.error(error)
                 else:
-                    st.dataframe(df, use_container_width=True)
+                    st.dataframe(make_unique_columns(df), use_container_width=True)
 
     # Footer
     st.markdown("---")
-    st.caption("Database: California Schools | Source: BIRD Benchmark")
+    st.caption("Database: superhero | Source: BIRD Benchmark")
 
 
 if __name__ == "__main__":

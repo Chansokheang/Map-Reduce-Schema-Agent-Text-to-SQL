@@ -28,12 +28,39 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+import re
+
 from .processing import InputProcessor, ProcessedInput
 from .agents import SchemaManager
 from .generation import CandidateGenerator, SQLCandidate, PromptBuilder
 from .selection import SQLExecutor, SQLJudge, ExecutionResult, JudgmentResult
 from .utils import Config
 from .utils.llm_client import create_llm_client
+
+
+def preprocess_evidence(evidence: str) -> str:
+    """
+    Preprocess evidence to replace backticks with square brackets.
+
+    This is needed because Claude Code CLI interprets backticks as markdown
+    and strips them, breaking column references in evidence like:
+      `Free Meal Count (K-12)` / `Enrollment (K-12)`
+
+    Converts to:
+      [Free Meal Count (K-12)] / [Enrollment (K-12)]
+
+    Args:
+        evidence: Raw evidence string from BIRD dev.json
+
+    Returns:
+        Preprocessed evidence with backticks replaced by square brackets
+    """
+    if not evidence:
+        return evidence
+
+    # Replace `column name` with [column name]
+    # Pattern matches backtick-enclosed text
+    return re.sub(r'`([^`]+)`', r'[\1]', evidence)
 
 
 @dataclass
@@ -89,6 +116,10 @@ class QASQLPipeline:
             self.llm_client = create_llm_client(
                 provider="openai",
                 model=self.config.openai_model
+            )
+        elif self.config.llm_provider == "headless":
+            self.llm_client = create_llm_client(
+                provider="headless"
             )
         else:
             self.llm_client = create_llm_client(
@@ -303,6 +334,10 @@ class QASQLPipeline:
         pipeline_start = time.perf_counter()
         metadata = {"timings": {}}
 
+        # Preprocess evidence: replace backticks with square brackets
+        # This prevents Claude Code CLI from stripping backticks as markdown
+        evidence = preprocess_evidence(evidence)
+
         # --- Stage 1: Load inputs ---
         t0 = time.perf_counter()
         processed = self.input_processor.process(nl_query, database_name)
@@ -352,7 +387,8 @@ class QASQLPipeline:
             candidates=candidates,
             nl_query=nl_query,
             db_path=resolved_db_path,
-            schema_str=schema_str
+            schema_str=schema_str,
+            evidence=evidence
         )
         metadata["timings"]["execution_ms"] = (time.perf_counter() - t0) * 1000
 
@@ -558,9 +594,9 @@ Examples:
     parser.add_argument(
         "--provider",
         type=str,
-        choices=["anthropic", "openai", "ollama"],
+        choices=["anthropic", "openai", "ollama", "headless"],
         default="anthropic",
-        help="LLM provider (default: anthropic)"
+        help="LLM provider (default: anthropic). Use 'headless' for Claude Max via claude-code-headless"
     )
     parser.add_argument(
         "-m", "--model",
@@ -704,6 +740,8 @@ def main():
             print(f"Model: {args.ollama_model} @ {args.ollama_url}")
         elif args.provider == "openai":
             print(f"Model: {args.openai_model}")
+        elif args.provider == "headless":
+            print("Model: Claude Max (via claude-code-headless)")
         else:
             print(f"Model: {args.model}")
         print(f"Questions: [{start_idx}, {end_idx}) ({end_idx - start_idx} total)")
@@ -751,6 +789,8 @@ def main():
                 print(f"Model: {args.ollama_model} @ {args.ollama_url}")
             elif args.provider == "openai":
                 print(f"Model: {args.openai_model}")
+            elif args.provider == "headless":
+                print("Model: Claude Max (via claude-code-headless)")
             else:
                 print(f"Model: {args.model}")
         print("=" * 70)

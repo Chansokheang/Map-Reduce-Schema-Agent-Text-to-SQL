@@ -19,12 +19,20 @@ TASK: Your job is to select the BEST SQL query from multiple candidates that cor
 
 You must evaluate each candidate based on the EVALUATION CRITERIA and select the one most likely to produce the correct result.
 
-EVALUATION CRITERIA:
-1. Correctness - Does the SQL correctly answer the question?
-2. Completeness - Does it include all required conditions, JOINs, and filters?
-3. Column accuracy - Does it use the correct column names and table references?
-4. Logic soundness - Is the query logic (WHERE, GROUP BY, ORDER BY, LIMIT) correct?
-5. Efficiency - Is it reasonably efficient without unnecessary complexity?
+EVALUATION CRITERIA (in order of importance):
+1. Evidence Compliance - If evidence provides a formula, the query MUST use that EXACT formula
+2. Minimal Output - SELECT only columns asked in the question. Do NOT add extra columns not requested
+3. NULL Handling - For calculated expressions (e.g., [A] / [B]), prefer queries with IS NOT NULL checks
+4. Correctness - Does the SQL correctly answer the question?
+5. Completeness - Does it include all required conditions, JOINs, and filters?
+6. Column accuracy - Does it use the correct column names and table references?
+7. Logic soundness - Is the query logic (WHERE, GROUP BY, ORDER BY, LIMIT) correct?
+
+CRITICAL RULES:
+- If evidence says "rate = [A] / [B]", the query MUST select [A] / [B], not a pre-calculated column
+- Do NOT prefer queries that add extra columns (like School Name) unless explicitly asked
+- Prefer queries with [expression] IS NOT NULL to avoid NULL results in calculations
+- Simpler queries that exactly match the question are BETTER than queries with extra information
 
 Return ONLY valid JSON with your selection.""",
 

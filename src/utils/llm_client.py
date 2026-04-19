@@ -310,6 +310,65 @@ class OllamaClient(BaseLLMClient):
             raise RuntimeError(f"Ollama API error: {e}")
 
 
+class ClaudeCodeHeadlessClient(BaseLLMClient):
+    """LLM client using Claude Code CLI via claude-code-headless package.
+
+    Uses Claude Max subscription instead of API credits.
+    Requires: pip install claude-code-headless
+    Prerequisites: Claude Code CLI installed and authenticated (claude login)
+    """
+
+    def __init__(self, model: str = None):
+        """
+        Initialize the Claude Code Headless client.
+
+        Args:
+            model: Not used (Claude Code uses your authenticated account's model)
+        """
+        try:
+            from claude_code_headless import call_claude_with_system
+            self._call_claude = call_claude_with_system
+        except ImportError:
+            raise ImportError(
+                "claude-code-headless not installed. Install it via:\n"
+                "  pip install claude-code-headless\n\n"
+                "Prerequisites:\n"
+                "  1. Install Claude Code CLI: npm install -g @anthropic-ai/claude-code\n"
+                "  2. Authenticate: claude login"
+            )
+
+        self.model = model or "claude-max"
+
+    def complete(
+        self,
+        prompt: str,
+        system_prompt: str = None,
+        max_tokens: int = 2048,
+        temperature: float = 0.0
+    ) -> str:
+        """Get a completion from Claude via Claude Code CLI.
+
+        Note: max_tokens and temperature are not directly supported by
+        claude-code-headless. The CLI uses its own defaults.
+        """
+        try:
+            import random
+            rate_limit = random.uniform(5, 10)
+            if system_prompt:
+                response = self._call_claude(
+                    prompt=prompt,
+                    system=system_prompt, # call_claude_with_system("Your prompt", system="You are a helpful assistant.", model="haiku", rate_limit=1.5)
+                    rate_limit=rate_limit  # Add a small delay to avoid hitting CLI rate limits
+                )
+            else:
+                from claude_code_headless import call_claude
+                response = call_claude(prompt, rate_limit=rate_limit)
+
+            return response
+        except Exception as e:
+            raise RuntimeError(f"Claude Code Headless error: {e}")
+
+
 # Keep LLMClient as an alias for backwards compatibility
 class LLMClient(AnthropicClient):
     """
@@ -322,7 +381,7 @@ class LLMClient(AnthropicClient):
 
 
 def create_llm_client(
-    provider: Literal["anthropic", "openai", "ollama"] = "anthropic",
+    provider: Literal["anthropic", "openai", "ollama", "headless"] = "anthropic",
     model: str = None,
     api_key: str = None,
     ollama_base_url: str = "http://localhost:11434"
@@ -331,13 +390,19 @@ def create_llm_client(
     Factory function to create an LLM client.
 
     Args:
-        provider: LLM provider ("anthropic", "openai", or "ollama")
+        provider: LLM provider ("anthropic", "openai", "ollama", or "headless")
         model: Model name (provider-specific)
         api_key: API key (for Anthropic or OpenAI)
         ollama_base_url: Ollama server URL (only for Ollama)
 
     Returns:
         Configured LLM client instance
+
+    Note:
+        The "headless" provider uses Claude Code CLI with your Claude Max
+        subscription, eliminating per-token API costs. Requires:
+        - pip install claude-code-headless
+        - Claude Code CLI installed and authenticated
     """
     if provider == "anthropic":
         default_model = "claude-3-5-haiku-20241022"
@@ -357,8 +422,10 @@ def create_llm_client(
             model=model or default_model,
             base_url=ollama_base_url
         )
+    elif provider == "headless":
+        return ClaudeCodeHeadlessClient(model=model)
     else:
         raise ValueError(
             f"Unknown provider: {provider}. "
-            "Supported providers: 'anthropic', 'openai', 'ollama'"
+            "Supported providers: 'anthropic', 'openai', 'ollama', 'headless'"
         )

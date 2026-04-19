@@ -45,7 +45,8 @@ Rules:
 5. DO NOT use pre-calculated columns if evidence specifies a formula to compute
 6. Use proper SQLite syntax with exact column names as shown in evidence
 7. Do NOT use DISTINCT - it is almost never needed. Only use DISTINCT if the question explicitly asks for "unique", "distinct", or "different" values
-8. Return only the SQL query, nothing else""",
+8. Return only the SQL query, nothing else
+9. IMPORTANT: For column names with spaces or special characters, use SQUARE BRACKETS (not backticks or double quotes). Example: SELECT [Free Meal Count (K-12)] FROM frpm""",
 
     "user_template": """Database Schema:
 {schema}

@@ -432,7 +432,7 @@ STRICT Scoring Rules:
 - 0.0: Table is NOT needed - the question does not require any data from this table.
 
 EVIDENCE Guidelines (CRITICAL):
-- If evidence mentions a column like "`Free Meal Count (K-12)`" and this table has that column → score 1.0
+- If evidence mentions a column like "[Free Meal Count (K-12)]" and this table has that column → score 1.0
 - If evidence mentions "table frpm" or similar table name hints → use that to determine relevance
 - If evidence contains a formula like "rate = A / B", check if this table has columns A or B
 - Evidence is from domain experts - trust it for column/table identification
@@ -447,7 +447,7 @@ Examples:
 - Question about "free meal rates" → frpm table = 1.0, satscores table = 0.0
 - Question about "SAT scores" → satscores table = 1.0, frpm table = 0.0
 - Question needing school info for JOIN → schools table = 0.5
-- Evidence says "`NumGE1500`" → satscores table = 1.0 (has that column)
+- Evidence says "[NumGE1500]" → satscores table = 1.0 (has that column)
 
 Be strict: if the question doesn't need data from "{table_readable_name}", score 0.0."""
 

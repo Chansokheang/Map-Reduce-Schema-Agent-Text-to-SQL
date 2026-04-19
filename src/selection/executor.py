@@ -174,12 +174,41 @@ Fix the SQL to resolve this issue. If the schema shows [Values: ...] for a colum
 
         return response.strip()
 
+    def _check_mostly_null(self, rows: list[Any], threshold: float = 0.8) -> bool:
+        """
+        Check if query results are mostly NULL values.
+
+        Args:
+            rows: Query results
+            threshold: Percentage of NULL to consider as "mostly NULL" (default 80%)
+
+        Returns:
+            True if results are predominantly NULL
+        """
+        if not rows:
+            return False
+
+        total_values = 0
+        null_count = 0
+
+        for row in rows:
+            for value in row:
+                total_values += 1
+                if value is None:
+                    null_count += 1
+
+        if total_values == 0:
+            return False
+
+        return (null_count / total_values) >= threshold
+
     def execute_with_retry(
         self,
         candidate: Any,
         nl_query: str,
         db_path: Path = None,
-        schema_str: str = None
+        schema_str: str = None,
+        evidence: str = None
     ) -> ExecutionResult:
         """
         Execute a SQL candidate with retry loop (max 3 iterations).
@@ -210,8 +239,53 @@ Fix the SQL to resolve this issue. If the schema shows [Values: ...] for a colum
             if success:
                 row_count = len(rows) if rows else 0
 
-                # Non-empty result → accept as success
+                # Non-empty result → check for mostly NULL values
                 if row_count > 0:
+                    # Check if results are mostly NULL (needs IS NOT NULL filter)
+                    if self._check_mostly_null(rows) and iteration < self.max_iterations:
+                        # Build specific guidance based on evidence
+                        evidence_guidance = ""
+                        if evidence:
+                            # Extract formula from evidence (e.g., "[A] / [B]")
+                            import re
+                            formula_match = re.search(r'=\s*(\[[^\]]+\]\s*/\s*\[[^\]]+\])', evidence)
+                            if formula_match:
+                                formula = formula_match.group(1)
+                                evidence_guidance = (
+                                    f"The evidence specifies: {evidence}. "
+                                    f"You MUST add '{formula} IS NOT NULL' to the WHERE clause "
+                                    f"to filter out NULL results from the division."
+                                )
+                            else:
+                                evidence_guidance = f"Evidence: {evidence}"
+
+                        feedback = (
+                            "CRITICAL: Query returned mostly NULL values! "
+                            "The SELECT expression returns NULL for many rows. "
+                            "You MUST add IS NOT NULL check on the ENTIRE calculated expression, "
+                            "not just individual columns. "
+                            "For example: WHERE [col_a] / [col_b] IS NOT NULL "
+                            "(checking the full expression, not just [col_a] IS NOT NULL or [col_b] IS NOT NULL). "
+                            f"{evidence_guidance}"
+                        )
+
+                        refinement_history.append({
+                            "iteration": iteration,
+                            "sql": current_sql,
+                            "error": feedback
+                        })
+
+                        # Refine and retry
+                        current_sql = self.refine_sql(
+                            sql=current_sql,
+                            error=feedback,
+                            nl_query=nl_query,
+                            schema_str=schema_str,
+                            iteration=iteration
+                        )
+                        continue
+
+                    # Non-NULL results → accept as success
                     elapsed_ms = (time.perf_counter() - start_time) * 1000.0
                     status = "success" if iteration == 1 else "refined"
 
@@ -301,7 +375,8 @@ Fix the SQL to resolve this issue. If the schema shows [Values: ...] for a colum
         candidates: list[Any],
         nl_query: str,
         db_path: Path = None,
-        schema_str: str = None
+        schema_str: str = None,
+        evidence: str = None
     ) -> list[ExecutionResult]:
         """
         Execute all SQL candidates with retry loops.
@@ -311,6 +386,7 @@ Fix the SQL to resolve this issue. If the schema shows [Values: ...] for a colum
             nl_query: Original natural language question
             db_path: Database path
             schema_str: Schema context for refinement
+            evidence: SME evidence for NULL handling guidance
 
         Returns:
             List of ExecutionResult objects
@@ -321,7 +397,8 @@ Fix the SQL to resolve this issue. If the schema shows [Values: ...] for a colum
                 candidate=candidate,
                 nl_query=nl_query,
                 db_path=db_path,
-                schema_str=schema_str
+                schema_str=schema_str,
+                evidence=evidence
             )
             results.append(result)
         return results

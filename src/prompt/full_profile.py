@@ -50,7 +50,8 @@ Rules:
 6. Use column descriptions to understand data meaning (but evidence takes priority)
 7. Use proper SQLite syntax with exact column names as shown in evidence
 8. Do NOT use DISTINCT - it is almost never needed. Only use DISTINCT if the question explicitly asks for "unique", "distinct", or "different" values
-9. Return only the SQL query, nothing else""",
+9. Return only the SQL query, nothing else
+10. IMPORTANT: For column names with spaces or special characters, use SQUARE BRACKETS (not backticks or double quotes). Example: SELECT [Free Meal Count (K-12)] FROM frpm""",
 
     "user_template": """Focused Schema (relevant tables with descriptions):
 {schema}

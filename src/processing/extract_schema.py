@@ -3,6 +3,31 @@ import json
 from pathlib import Path
 
 
+def load_column_meanings(column_meaning_path: Path) -> dict[str, str]:
+    """Load column_meaning.json and return a clean lookup dict.
+
+    Key format: "{database}|{table}|{column}"
+    Values have leading '#' and optional wrapping quotes stripped.
+    """
+    if not column_meaning_path.exists():
+        return {}
+
+    with open(column_meaning_path, "r", encoding="utf-8") as f:
+        raw = json.load(f)
+
+    cleaned = {}
+    for key, value in raw.items():
+        # Strip leading '#', optional wrapping single quotes, and whitespace
+        desc = value.strip()
+        if desc.startswith("#"):
+            desc = desc[1:].strip()
+        if desc.startswith("'") and desc.endswith("'"):
+            desc = desc[1:-1].strip()
+        cleaned[key] = desc
+
+    return cleaned
+
+
 def load_dev_tables(dev_tables_path):
     """Load dev_tables.json and create lookup dictionaries for readable names."""
     with open(dev_tables_path, "r", encoding="utf-8") as f:
@@ -73,7 +98,7 @@ def get_distinct_values(cursor, table_name: str, column_name: str, column_type: 
         return None
 
 
-def get_schema_with_samples(db_path, dev_tables_lookup, sample_limit=3):
+def get_schema_with_samples(db_path, dev_tables_lookup, sample_limit=3, column_meanings=None):
     """Extract all tables, columns, data types, keys, and top N sample rows from a database."""
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
@@ -110,6 +135,12 @@ def get_schema_with_samples(db_path, dev_tables_lookup, sample_limit=3):
                 "readable_name": col_readable,
                 "type": col_type
             }
+
+            # Inject description from column_meaning.json if available
+            if column_meanings:
+                meaning_key = f"{db_name}|{table}|{col_name}"
+                if meaning_key in column_meanings:
+                    col_dict["description"] = column_meanings[meaning_key]
 
             # Extract distinct values for low-cardinality TEXT columns
             distinct_vals = get_distinct_values(cursor, table, col_name, col_type)
@@ -158,6 +189,7 @@ def main():
     db_dir = base_dir / "data" / "bird_data" / "dev_databases"
     dev_tables_path = base_dir / "data" / "bird_data" / "dev_tables.json"
     output_dir = base_dir / "data" / "bird_data" / "schemas"
+    column_meaning_path = base_dir / "data" / "column_meaning.json"
 
     output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -166,12 +198,20 @@ def main():
     dev_tables_lookup = load_dev_tables(dev_tables_path)
     print(f"Loaded readable names for {len(dev_tables_lookup)} databases\n")
 
+    # Load column descriptions from column_meaning.json
+    column_meanings = load_column_meanings(column_meaning_path)
+    if column_meanings:
+        print(f"Loaded {len(column_meanings)} column descriptions from column_meaning.json\n")
+    else:
+        print("column_meaning.json not found — skipping descriptions\n")
+
     db_files = list(db_dir.glob("**/*.sqlite"))
     print(f"Found {len(db_files)} databases\n")
 
     for db_path in db_files:
         db_name = db_path.stem
-        schema = get_schema_with_samples(db_path, dev_tables_lookup, sample_limit=5)
+        schema = get_schema_with_samples(db_path, dev_tables_lookup, sample_limit=5,
+                                         column_meanings=column_meanings)
 
         # Save to JSON
         output_path = output_dir / f"{db_name}_schema.json"
