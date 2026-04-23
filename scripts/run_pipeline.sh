@@ -20,7 +20,7 @@ set -e
 # Default values
 PROVIDER="anthropic"
 MODEL=""  # Will be set based on provider
-ANTHROPIC_MODEL="claude-sonnet-4-5-20250929"
+ANTHROPIC_MODEL="claude-sonnet-4-6"
 OPENAI_MODEL="gpt-4o-mini"  # gpt-4o / gpt-4o-mini / gpt-4-turbo
 OLLAMA_MODEL="qwen3-coder-next:latest" # qwen3-coder-next:latest / qwen2.5-coder:32b
 OLLAMA_URL="http://203.255.78.58:9000" # http://203.255.78.58:9000
@@ -33,7 +33,7 @@ TIMEOUT=30
 MAX_WORKERS=4
 VERBOSE=false
 DATA_DIR="./data/bird_data/"
-OUTPUT_DIR="./output/final/" 
+OUTPUT_DIR="./output/Sonnet4-6/" 
 
 # Colors for output
 RED='\033[0;31m'
