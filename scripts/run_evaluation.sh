@@ -22,7 +22,7 @@ PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 DB_ROOT_PATH="${PROJECT_DIR}/data/bird_data/dev_databases/"
 DIFF_JSON_PATH="${PROJECT_DIR}/data/bird_data/dev.json"
 GROUND_TRUTH_PATH="${PROJECT_DIR}/data/bird_data/"
-OUTPUT_DIR="${PROJECT_DIR}/output/claude_headless_v2/"
+OUTPUT_DIR="${PROJECT_DIR}/output/claude_headless_v6/"
 # OUTPUT_DIR="${PROJECT_DIR}/output/gemma4/"
 FILE_NAME=""
 EVAL_ALL=true
@@ -31,8 +31,8 @@ NUM_CPUS=4
 META_TIME_OUT=30.0
 ITERATE_NUM=100
 DATA_MODE="dev"
-START_IDX="0"
-END_IDX="300"
+START_IDX="400"
+END_IDX="500"
 
 # All prediction files to evaluate
 ALL_FILES=(

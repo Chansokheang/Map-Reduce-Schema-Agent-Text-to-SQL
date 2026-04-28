@@ -43,7 +43,7 @@ DATA_DIR="./data/bird_data/"
 # default ({DATA_DIR}/dev.json); keeping it explicit here so it shows in logs.
 DEV_JSON="./data/bird_data/dev.json"
 OUTPUT_DIR="./output/gemma4/"
-OUTPUT_DIR="./output/claude_headless_v3/"
+OUTPUT_DIR="./output/claude_headless_v6/"
 # OUTPUT_DIR="./output/Sonnet4-6/"
 
 # Colors for output
