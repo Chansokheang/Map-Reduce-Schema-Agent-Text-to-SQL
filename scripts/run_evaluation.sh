@@ -31,11 +31,12 @@ NUM_CPUS=4
 META_TIME_OUT=30.0
 ITERATE_NUM=100
 DATA_MODE="dev"
-START_IDX="400"
-END_IDX="500"
+START_IDX="1000"
+END_IDX="1100"
 
 # All prediction files to evaluate
 ALL_FILES=(
+    # "refined_selected.json"
     "selected.json"
     # "candidate_full_schema.json"
     # "candidate_sme_metadata.json"
