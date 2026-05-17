@@ -1,4 +1,4 @@
-# QA-SQL: BIRD Submission Guide
+# MRS-Agent: BIRD Submission Guide
 
 ## Setup
 
@@ -115,7 +115,7 @@ This system uses `data/column_meaning.json` for column semantic descriptions. Th
 
 ## Prompt Token Estimation
 
-Measured on the BIRD dev set using **claude-sonnet-4-5-20250929**:
+Measured on the BIRD dev set using **claude-sonnet-4-6**:
 
 | | Per question (Q0) | Full dev set (× 1,533) |
 |---|---|---|
