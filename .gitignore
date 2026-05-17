@@ -18,5 +18,5 @@ docs/*
 scripts/update_descriptions_from_csv.py
 Dockerfile
 CLAUDE.md
-
+.claude/*
 analysis/figures/*
