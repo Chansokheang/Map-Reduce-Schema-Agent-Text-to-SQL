@@ -14,6 +14,8 @@ from dataclasses import dataclass, field
 from typing import Any
 from concurrent.futures import ThreadPoolExecutor
 
+from ..utils.llm_client import AnthropicExhaustedError, AnthropicRefusalError
+
 
 @dataclass
 class QueryComponent:
@@ -129,8 +131,17 @@ class SchemaManager:
                 original_query=nl_query,
                 components=components
             )
+        except AnthropicRefusalError:
+            # Persistent refusal at decompose stage — fall back to heuristic
+            # decomposition (uses the full question text + keyword matching)
+            # so the rest of the pipeline can still run.
+            print("  [manager.decompose_query] refusal — falling back to heuristic decomposition.")
+            return self._heuristic_decompose(nl_query)
+        except AnthropicExhaustedError:
+            # Terminal API failure — let it propagate so the batch halts.
+            raise
         except (json.JSONDecodeError, KeyError, Exception):
-            # Fallback to heuristic if LLM fails
+            # Fallback to heuristic if the LLM returned unparseable output.
             return self._heuristic_decompose(nl_query)
 
     def _heuristic_decompose(self, nl_query: str) -> DecomposedQuery:
@@ -369,9 +380,40 @@ class SchemaManager:
         # Get the original query for context
         original_query = decomposed_query.original_query
 
-        # Create one worker per table, each with its own mini LLM
-        # Execute all workers in parallel
+        # Create one worker per table, each with its own mini LLM.
+        #
+        # SERIAL MODE (active): run workers one at a time. Avoids the burst of
+        # concurrent API calls that triggers Anthropic 529 `overloaded_error`
+        # on large DBs (e.g. `financial` has 8 tables → 8 simultaneous calls).
+        #
+        # PARALLEL MODE (disabled below): kept intact so it can be re-enabled
+        # once retry+backoff is added to the Anthropic client.
+        # =============================================================================
         results = []
+        # for idx, table_name in enumerate(table_names):
+        #     worker = SchemaWorker(
+        #         worker_id=f"worker-{idx+1}",
+        #         llm_client=self.llm_client
+        #     )
+        #     try:
+        #         result = worker(
+        #             [table_name],
+        #             schema,
+        #             query_components,
+        #             profile,
+        #             original_query,
+        #             evidence
+        #         )
+        #         results.append(result)
+        #     except AnthropicExhaustedError:
+        #         # Terminal API failure — halt the whole batch instead of
+        #         # proceeding with a partial focused schema.
+        #         raise
+        #     except Exception as e:
+        #         print(f"Worker error for table '{table_name}': {e}")
+
+        # --- Previous parallel implementation (kept for reference) ---
+        # =============================================================================
         with ThreadPoolExecutor(max_workers=len(table_names)) as executor:
             futures = []
             for idx, table_name in enumerate(table_names):
@@ -390,7 +432,7 @@ class SchemaManager:
                     evidence  # Pass evidence for table relevance hints
                 )
                 futures.append((table_name, future))
-
+        
             # Collect results from all workers
             for table_name, future in futures:
                 try:
@@ -449,6 +491,40 @@ class SchemaManager:
             }
         }
 
+        # Track redirect requests so we can include redirect-target tables
+        # (e.g., schools.County) in focused_schema when a worker flagged a
+        # deprecated column (e.g., satscores.cname) — gives the LLM both
+        # signals to compare and pick the right one.
+        redirect_targets: set[tuple[str, str]] = set()  # {(table, column)}
+
+        _UNUSEFUL_MARKERS = ("unuseful", "deprecated", "do not use")
+
+        def _is_unuseful(col_dict: dict[str, Any]) -> bool:
+            desc = (col_dict.get("description") or "").lower()
+            return any(m in desc for m in _UNUSEFUL_MARKERS)
+
+        def _parse_redirect_targets(
+            desc: str, current_table: str
+        ) -> list[tuple[str, str]]:
+            """
+            Pull `<table>.<column>` references out of a deprecated column's
+            description, e.g. "use schools.County instead" → [("schools","County")].
+
+            Skips self-references (same table as the deprecated column itself)
+            so the JOIN-key chatter in the description ("...satscores.cds...")
+            doesn't accidentally cause us to re-add the deprecated column or
+            its incidental JOIN keys to focused_schema.
+            """
+            if not desc:
+                return []
+            out = []
+            for m in re.finditer(r"\b([A-Za-z_]\w*)\.([A-Za-z_]\w*)", desc):
+                tbl, col = m.group(1), m.group(2)
+                if tbl.lower() == current_table.lower():
+                    continue
+                out.append((tbl, col))
+            return out
+
         for table_rel in relevant_tables:
             table_name = table_rel.table_name
             original_table = schema.get(table_name, {})
@@ -464,16 +540,27 @@ class SchemaManager:
                 "table_readable_name": original_table.get("table_readable_name", table_name),
                 "relevance_score": table_rel.relevance_score,
                 "reason": table_rel.reason,
-                "columns": []
+                "columns": [],
+                "primary_keys": original_table.get("primary_keys", []),
+                "foreign_keys": original_table.get("foreign_keys", []),
             }
 
-            # Include relevant columns (or all if none specifically marked)
+            # Include relevant columns (or all if none specifically marked).
+            # Deprecated columns are dropped, but their redirect targets
+            # (parsed from the description) get queued so we can ensure the
+            # target table is in focused_schema below.
             original_columns = original_table.get("columns", [])
             for col in original_columns:
                 col_name = col.get("name", col) if isinstance(col, dict) else col
-                # Include column if it's marked relevant or if no specific columns marked
                 if not relevant_col_names or col_name in relevant_col_names:
                     if isinstance(col, dict):
+                        if _is_unuseful(col):
+                            # Queue any redirect targets for inclusion below.
+                            for tgt_table, tgt_col in _parse_redirect_targets(
+                                col.get("description", ""), table_name
+                            ):
+                                redirect_targets.add((tgt_table, tgt_col))
+                            continue
                         focused_table["columns"].append(col)
                     else:
                         focused_table["columns"].append({"name": col})
@@ -485,6 +572,57 @@ class SchemaManager:
                 "reason": table_rel.reason,
                 "relevant_columns": [col.column_name for col in table_rel.relevant_columns]
             })
+
+        # After all worker-flagged tables are added, inject redirect targets.
+        # If the redirect's table isn't already in focused_schema, add a
+        # minimal entry that includes only the redirect column (plus PK/FK).
+        # If the table IS already there but the redirect column was missed,
+        # append it so the LLM sees both options.
+        for tgt_table, tgt_col in redirect_targets:
+            tgt_table_data = schema.get(tgt_table)
+            if not tgt_table_data:
+                continue
+
+            # Find the redirect column definition in the original schema
+            tgt_col_def = None
+            for c in tgt_table_data.get("columns", []):
+                if isinstance(c, dict) and c.get("name") == tgt_col:
+                    tgt_col_def = c
+                    break
+            if tgt_col_def is None:
+                continue
+
+            if tgt_table in focused_schema["tables"]:
+                # Add the redirect column if missing
+                existing_cols = {
+                    c.get("name") for c in focused_schema["tables"][tgt_table]["columns"]
+                    if isinstance(c, dict)
+                }
+                if tgt_col not in existing_cols:
+                    focused_schema["tables"][tgt_table]["columns"].append(tgt_col_def)
+            else:
+                # Add minimal table entry — just the redirect column + PK/FK
+                focused_schema["tables"][tgt_table] = {
+                    "table_name": tgt_table,
+                    "table_readable_name": tgt_table_data.get(
+                        "table_readable_name", tgt_table
+                    ),
+                    "relevance_score": 0.5,
+                    "reason": (
+                        f"Auto-included as redirect target — a deprecated "
+                        f"column referenced {tgt_table}.{tgt_col} as the "
+                        f"correct alternative."
+                    ),
+                    "columns": [tgt_col_def],
+                    "primary_keys": tgt_table_data.get("primary_keys", []),
+                    "foreign_keys": tgt_table_data.get("foreign_keys", []),
+                }
+                focused_schema["table_relevances"].append({
+                    "table_name": tgt_table,
+                    "relevance_score": 0.5,
+                    "reason": "Redirect target from a deprecated column.",
+                    "relevant_columns": [tgt_col],
+                })
 
         return focused_schema
 

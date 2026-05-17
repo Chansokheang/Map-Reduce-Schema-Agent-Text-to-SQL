@@ -1,5 +1,11 @@
 #!/bin/bash
 
+# Re-exec under bash if invoked via `sh` (e.g. `sh run_evaluation.sh ...`).
+# On Debian/Ubuntu `sh` is dash, which doesn't support [[ ]] or ${BASH_SOURCE[0]}.
+if [ -z "${BASH_VERSION:-}" ]; then
+    exec bash "$0" "$@"
+fi
+
 # =============================================================================
 # QA-SQL Evaluation Script
 # =============================================================================
@@ -21,9 +27,13 @@ PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 # Default Configuration (relative to project directory)
 DB_ROOT_PATH="${PROJECT_DIR}/data/bird_data/dev_databases/"
 DIFF_JSON_PATH="${PROJECT_DIR}/data/bird_data/dev.json"
+
+# DB_ROOT_PATH="${PROJECT_DIR}/data/bird_data/test_databases/"
+# DIFF_JSON_PATH="${PROJECT_DIR}/data/bird_data/test.json"
+
 GROUND_TRUTH_PATH="${PROJECT_DIR}/data/bird_data/"
 OUTPUT_DIR="${PROJECT_DIR}/output/claude_headless_v6/"
-# OUTPUT_DIR="${PROJECT_DIR}/output/gemma4/"
+
 FILE_NAME=""
 EVAL_ALL=true
 EVAL_TYPE="acc"
@@ -31,13 +41,13 @@ NUM_CPUS=4
 META_TIME_OUT=30.0
 ITERATE_NUM=100
 DATA_MODE="dev"
-START_IDX="1000"
-END_IDX="1100"
+START_IDX="0"
+END_IDX="1533"
 
 # All prediction files to evaluate
 ALL_FILES=(
-    # "refined_selected.json"
-    "selected.json"
+    "refined_selected.json"
+    # "selected.json"
     # "candidate_full_schema.json"
     # "candidate_sme_metadata.json"
     # "candidate_minimal_profile.json"

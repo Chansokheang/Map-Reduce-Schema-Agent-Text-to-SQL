@@ -61,13 +61,13 @@ st.markdown("""
 
 # Paths - Support both local and Docker environments
 # DATA_DIR = Path(os.environ.get("DATA_DIR", Path(__file__).parent.parent / "data"))
-DB_PATH = Path(os.environ.get("DB_PATH", Path(__file__).parent / "superhero.sqlite"))
+DB_PATH = Path(os.environ.get("DB_PATH", Path(__file__).parent / "california_schools.sqlite"))
 DEV_JSON_PATH = Path(os.environ.get("DB_PATH", Path(__file__).parent / "dev.json"))
 # DEV_JSON_PATH = DATA_DIR / "bird_data" / "dev.json"
 
 
 @st.cache_data
-def load_questions(db_id: str = "superhero") -> list[dict]:
+def load_questions(db_id: str = "california_schools") -> list[dict]:
     """Load questions for a specific database from dev.json."""
     with open(DEV_JSON_PATH, "r", encoding="utf-8") as f:
         all_questions = json.load(f)
@@ -166,10 +166,10 @@ def main():
     st.markdown("Compare your SQL queries against ground truth from the BIRD benchmark")
 
     # Load questions
-    questions = load_questions("superhero")
+    questions = load_questions("california_schools")
 
     if not questions:
-        st.error("No questions found for superhero database")
+        st.error("No questions found for california_schools database")
         return
 
     # Sidebar - Question selector
@@ -355,7 +355,7 @@ def main():
 
     with tab2:
         st.header("Question Browser")
-        st.markdown("Browse all questions for the superhero database")
+        st.markdown("Browse all questions for the california_schools database")
 
         # Display questions table
         questions_df = pd.DataFrame([
@@ -413,7 +413,7 @@ def main():
 
     # Footer
     st.markdown("---")
-    st.caption("Database: superhero | Source: BIRD Benchmark")
+    st.caption("Database: california_schools | Source: BIRD Benchmark")
 
 
 if __name__ == "__main__":

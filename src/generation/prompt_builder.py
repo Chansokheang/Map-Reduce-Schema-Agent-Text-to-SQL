@@ -11,11 +11,46 @@ Builds prompts for SQL generation with 5 context-aware strategies:
 Prompts are loaded from src/prompt directory.
 """
 
+import re
 from typing import Any
 from enum import Enum
 
 # Import prompts from src/prompt directory
 from src.prompt import STRATEGY_PROMPTS
+
+
+# Tables that SQLite creates internally (AUTOINCREMENT bookkeeping, FTS indexes,
+# etc.) and that are never legitimate query targets. Skipped from every schema
+# strategy so they don't pollute the LLM's prompt.
+_SYSTEM_TABLE_PREFIX = "sqlite_"
+
+
+# Markers in a column description that mean "don't filter on this column".
+# When present, the column still appears in the CREATE TABLE (so JOINs work)
+# but its `[Values: ...]` hint is suppressed to remove the temptation to
+# filter on those literal values.
+_UNUSEFUL_MARKERS = ("unuseful",)
+
+
+# Characters that require quoting when used in a SQLite identifier.
+# If a column/table name matches this regex, we wrap it in square brackets
+# everywhere it appears in the emitted schema.
+_UNQUOTED_IDENT_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+
+
+def _quote_ident(name: str) -> str:
+    """Return the identifier wrapped in square brackets if it has special chars.
+
+    Pre-quoting identifiers in the CREATE TABLE output makes the LLM far more
+    likely to copy the quoted form into WHERE/ORDER BY clauses, avoiding the
+    common failure mode where it emits `"FRPM Count (K-12)"` (SQLite treats
+    that as a string literal in some contexts) instead of `[FRPM Count (K-12)]`.
+    """
+    if not name:
+        return name
+    if _UNQUOTED_IDENT_RE.match(name):
+        return name
+    return f"[{name}]"
 
 
 class ContextStrategy(Enum):
@@ -74,7 +109,7 @@ class PromptBuilder:
         Returns:
             Formatted CREATE TABLE statement
         """
-        lines = [f"CREATE TABLE {table_name} ("]
+        lines = [f"CREATE TABLE {_quote_ident(table_name)} ("]
 
         columns = table_info.get("columns", [])
         column_lines = []
@@ -83,8 +118,18 @@ class PromptBuilder:
             if isinstance(col, dict):
                 col_name = col.get("name", "")
                 col_type = col.get("type", "TEXT")
+                description_lower = (col.get("description") or "").lower()
+                is_unuseful = any(m in description_lower for m in _UNUSEFUL_MARKERS)
 
-                col_def = f"    {col_name} {col_type}"
+                # Skip deprecated/unuseful columns entirely so no strategy can
+                # see them. The column still exists in the underlying DB, but
+                # it never appears in the prompt — the LLM cannot emit what
+                # it never saw. Redirect guidance (e.g. "use schools.District
+                # instead") stays reachable via the target column's own row.
+                if is_unuseful:
+                    continue
+
+                col_def = f"    {_quote_ident(col_name)} {col_type}"
 
                 # Add description as comment if requested
                 desc_parts = []
@@ -96,14 +141,17 @@ class PromptBuilder:
                     if col.get("readable_name") and col["readable_name"] != col_name:
                         desc_parts.insert(0, f"({col['readable_name']})")
 
-                # Always add distinct values for categorical columns
                 if col.get("distinct_values"):
                     values = col["distinct_values"]
-                    if len(values) <= 10:
+                    # Show the full set for low/medium-cardinality columns
+                    # (≤ 30 values). Truncating below that can hide critical
+                    # categorical codes like 'K' (kindergarten), 'P' (pre-K),
+                    # which then lead the LLM to guess numeric fallbacks.
+                    if len(values) <= 30:
                         values_str = ", ".join(f"'{v}'" for v in values)
                     else:
-                        shown = ", ".join(f"'{v}'" for v in values[:8])
-                        values_str = f"{shown}, ... (+{len(values) - 8} more)"
+                        shown = ", ".join(f"'{v}'" for v in values[:20])
+                        values_str = f"{shown}, ... (+{len(values) - 20} more)"
                     desc_parts.append(f"[Values: {values_str}]")
 
                 if desc_parts:
@@ -112,7 +160,24 @@ class PromptBuilder:
                 column_lines.append(col_def)
             else:
                 # Simple string column name
-                column_lines.append(f"    {col} TEXT")
+                column_lines.append(f"    {_quote_ident(col)} TEXT")
+
+        # Append PRIMARY KEY / FOREIGN KEY constraints so the LLM can reason about
+        # cardinality (1:1 vs 1:many) when deciding JOINs, DISTINCT, etc.
+        primary_keys = table_info.get("primary_keys") or []
+        if primary_keys:
+            pk_cols = ", ".join(_quote_ident(pk) for pk in primary_keys)
+            column_lines.append(f"    PRIMARY KEY ({pk_cols})")
+
+        for fk in table_info.get("foreign_keys") or []:
+            ref_table = fk.get("references_table")
+            ref_column = fk.get("references_column")
+            col = fk.get("column")
+            if col and ref_table and ref_column:
+                column_lines.append(
+                    f"    FOREIGN KEY ({_quote_ident(col)}) REFERENCES "
+                    f"{_quote_ident(ref_table)}({_quote_ident(ref_column)})"
+                )
 
         lines.append(",\n".join(column_lines))
         lines.append(");")
@@ -138,6 +203,8 @@ class PromptBuilder:
         """
         tables = []
         for table_name, table_info in schema.items():
+            if table_name.startswith(_SYSTEM_TABLE_PREFIX):
+                continue
             tables.append(self.format_table_schema(
                 table_name,
                 table_info,
@@ -168,6 +235,8 @@ class PromptBuilder:
         sme_tables = sme_profile.get("tables", {}) if sme_profile else {}
 
         for table_name, table_info in schema.items():
+            if table_name.startswith(_SYSTEM_TABLE_PREFIX):
+                continue
             # Merge SME info into table_info
             merged_info = dict(table_info)
             sme_table = sme_tables.get(table_name, {})
@@ -224,6 +293,8 @@ class PromptBuilder:
         profile_tables = profile.get("tables", {}) if profile else {}
 
         for table_name, table_info in schema.items():
+            if table_name.startswith(_SYSTEM_TABLE_PREFIX):
+                continue
             merged_info = dict(table_info)
             profile_table = profile_tables.get(table_name, {})
 
@@ -280,6 +351,8 @@ class PromptBuilder:
 
         tables = []
         for table_name, table_info in tables_data.items():
+            if table_name.startswith(_SYSTEM_TABLE_PREFIX):
+                continue
             relevance = table_info.get("relevance_score", 1.0)
             table_str = self.format_table_schema(
                 table_name,
@@ -320,6 +393,8 @@ class PromptBuilder:
         tables = []
 
         for table_name, table_info in tables_data.items():
+            if table_name.startswith(_SYSTEM_TABLE_PREFIX):
+                continue
             relevance = table_info.get("relevance_score", 1.0)
 
             # Merge profile descriptions into focused schema
@@ -384,6 +459,8 @@ class PromptBuilder:
         sme_tables = sme_profile.get("tables", {}) if sme_profile else {}
 
         for table_name, table_info in schema.items():
+            if table_name.startswith(_SYSTEM_TABLE_PREFIX):
+                continue
             merged_info = dict(table_info)
             profile_table = profile_tables.get(table_name, {})
             sme_table = sme_tables.get(table_name, {})

@@ -1,170 +1,140 @@
-# QA-SQL: Query Augmentation to SQL
+# QA-SQL: BIRD Submission Guide
 
-A multi-stage pipeline that converts natural language questions into SQL using:
-1) a Map-Reduce Schema Agent to narrow relevant tables/columns, and
-2) a SQL Selection Agent that generates multiple candidates and uses LLM-as-a-Judge to pick the best query.
-
-For a deeper architectural walkthrough, see `docs/README.md`.
-
----
-
-## Quickstart
+## Setup
 
 ```bash
-# 1) Install dependencies
+# 1. Install dependencies
 pip install -r requirements.txt
 
-# 2) Download BIRD dev data (creates data/bird_data/)
-bash scripts/get_dbs.sh
-
-# 3) Set API key (if using Anthropic or OpenAI)
+# 2. Set API key
 export ANTHROPIC_API_KEY='your-key'
-# or
-export OPENAI_API_KEY='your-key'
-```
 
-Run a single question:
+# 3. Download BIRD dev databases  →  data/bird_data/
+cd scripts && bash get_dbs.sh && cd ..
 
-```bash
-# Default: Anthropic Claude
-bash scripts/run_pipeline.sh -q 0
+# 4. Extract schema + embed column descriptions from column_meaning.json
+#    Dev (defaults):
+python src/processing/extract_schema.py \
+    --db-dir       ./data/bird_data/dev_databases \
+    --tables-json  ./data/bird_data/dev_tables.json \
+    --output-dir   ./data/bird_data/schemas && cd scripts
 
-# OpenAI
-bash scripts/run_pipeline.sh --openai -m gpt-4o-mini -q 0
-
-# Ollama (local)
-bash scripts/run_pipeline.sh --ollama -m qwen2.5-coder:32b -q 0
-
-# Claude Max via claude-code-headless (no API key)
-bash scripts/run_pipeline.sh --headless -q 0
+#    Test set (override paths):
+# python src/processing/extract_schema.py \
+#     --db-dir       ./data/bird_data/test_databases \
+#     --tables-json  ./data/bird_data/test_tables.json \
+#     --output-dir   ./data/bird_data/schemas && cd scripts
 ```
 
 ---
 
-## Submission Instructions (BIRD dev)
-
-These steps produce the exact prediction file expected by the evaluation tooling and most submission workflows.
-
-### 1) Generate predictions for the full dev set
-
-Pick one provider and run all questions:
+## Step 1 — Generate Predictions (1,533 questions)
 
 ```bash
-# Anthropic (default)
-bash scripts/run_pipeline.sh --all -o output/claude_run/
-
-# OpenAI
-bash scripts/run_pipeline.sh --openai -m gpt-4o-mini --all -o output/openai_gpt4o_mini/
-
-# Ollama
-bash scripts/run_pipeline.sh --ollama -m qwen2.5-coder:32b --all -o output/qwen2.5_32b/
-
-# Claude Max (no API key)
-bash scripts/run_pipeline.sh --headless --all -o output/claude_headless/
+sh run_pipeline.sh -b 0 1533
 ```
 
-Notes:
-- Use `-b START END` to run a slice (e.g., `-b 0 100` for questions 0–99).
-- Use `-t` to adjust relevance threshold and `--workers` to tune parallelism.
-- Outputs are written into your `-o` directory.
+Output: `output/final/selected.json`
 
-### 2) Confirm the submission file
+To use a custom output directory:
 
-Your submission-ready file is:
-
-```
-output/<run-name>/selected.json
+```bash
+sh run_pipeline.sh -b 0 1533
 ```
 
-Format (dict keyed by question id):
+To resume a partial range:
+
+```bash
+sh run_pipeline.sh -b 300 600   # questions 300–599
+```
+
+---
+
+## Step 2 — Evaluate Locally
+
+Default range is already `START_IDX=0`, `END_IDX=1533` in `run_evaluation.sh`.
+
+```bash
+# Execution accuracy (EX)
+sh run_evaluation.sh -o output/final/ -f selected.json -t acc
+
+# # Valid efficiency score (VES)
+# sh run_evaluation.sh -o output/final/ -f selected.json -t ves
+
+# Both
+sh run_evaluation.sh -o output/final/ -f selected.json -t both
+```
+
+Partial range example:
+
+```bash
+sh run_evaluation.sh -o output/final/ -f selected.json -t acc --start 0 --end 100
+```
+
+> To change the default evaluation range, edit `run_evaluation.sh`:
+> ```bash
+> START_IDX="0"
+> END_IDX="1533"
+> ```
+
+---
+
+## Step 3 — Submit
+
+Upload `output/final/selected.json`.
+
+Expected format (dict keyed by question index):
 
 ```
 "0": "SELECT ... \t----- bird -----\t<database_name>"
 ```
 
-You can sanity-check the first entry:
+---
+
+## Other Providers
 
 ```bash
-python - <<'PY'
-import json
-data = json.load(open('output/claude_run/selected.json'))
-first_key = next(iter(data))
-print(first_key, data[first_key])
-PY
-```
+# OpenAI
+export OPENAI_API_KEY='your-key'
+sh run_pipeline.sh --openai -m gpt-4o-mini -b 0 1533
 
-### 3) Evaluate locally (recommended)
+# Ollama (local)
+sh run_pipeline.sh --ollama -m qwen2.5-coder:32b -b 0 1533
 
-```bash
-# Accuracy only (fast)
-bash scripts/run_evaluation.sh -o output/claude_run/ -f selected.json -t acc
-
-# VES only
-bash scripts/run_evaluation.sh -o output/claude_run/ -f selected.json -t ves
-
-# Both
-bash scripts/run_evaluation.sh -o output/claude_run/ -f selected.json -t both
-```
-
-### 4) Package for submission
-
-If your submission portal expects a single file, upload `selected.json` directly.
-If it expects an archive:
-
-```bash
-zip -j submission.zip output/claude_run/selected.json
+# Claude Max (no API key, requires Claude Code CLI)
+sh run_pipeline.sh --headless -b 0 1533
 ```
 
 ---
 
-## Pipeline CLI (direct)
+## External Knowledge
 
-The underlying CLI is `python -m src.pipeline` (same as the script wrapper):
-
-```bash
-python -m src.pipeline -q 0
-python -m src.pipeline -b --range 0 10
-python -m src.pipeline --provider openai --openai-model gpt-4o-mini -b --range 0 100
-python -m src.pipeline --provider ollama --ollama-model llama3.2 -q 0
-```
+This system uses `data/column_meaning.json` for column semantic descriptions. These descriptions are embedded into the schema files by `src/processing/extract_schema.py` (Step 4 above).
 
 ---
 
-## Streamlit App
+## Prompt Token Estimation
 
-```bash
-# Local
-streamlit run app/sql_comparison_app.py
+Measured on the BIRD dev set using **claude-sonnet-4-5-20250929**:
 
-# Docker
-cd app && docker-compose up
-```
+| | Per question (Q0) | Full dev set (× 1,533) |
+|---|---|---|
+| Input (prompt) tokens | ~15,280 | **~23,424,240** |
+| Output (completion) tokens | ~1,229 | ~1,884,357 |
+| Estimated cost | ~$0.06 | **~$92** |
 
----
-
-## Project Structure
-
-```
-src/
-├── agents/                 # Map-Reduce schema agent
-├── generation/             # Multi-strategy SQL generation
-├── selection/              # SQL execution + LLM-as-a-Judge
-├── processing/             # Schema extraction & profiling
-├── utils/                  # LLM client + config
-└── pipeline.py             # Orchestrator + CLI
-```
+> These are estimates based on question 0. Actual usage may vary ±20% depending on schema size and retry attempts.
 
 ---
 
-## Data Utilities
+## Key Options (`run_pipeline.sh`)
 
-```bash
-# Extract schema from SQLite databases
-python src/processing/extract_schema.py
-
-# Generate column descriptions
-python src/processing/database_profiling.py
-
-# Update descriptions JSONs from BIRD CSVs
-python scripts/update_descriptions_from_csv.py
-```
+| Flag | Default | Description |
+|---|---|---|
+| `-b START END` | — | Batch range |
+| `-q N` | `0` | Single question |
+| `--all` | — | All questions from 0 |
+| `-t N` | `0.5` | Relevance threshold |
+| `--timeout N` | `30` | Query timeout (seconds) |
+| `--workers N` | `4` | Parallel schema workers |
+| `-o PATH` | `output/final/` | Output directory |

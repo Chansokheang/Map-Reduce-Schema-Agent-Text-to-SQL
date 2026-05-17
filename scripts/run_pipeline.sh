@@ -1,5 +1,11 @@
 #!/bin/bash
 
+# Re-exec under bash if invoked via `sh` (e.g. `sh run_pipeline.sh ...`).
+# On Debian/Ubuntu `sh` is dash, which doesn't support [[ ]] or ${BASH_SOURCE[0]}.
+if [ -z "${BASH_VERSION:-}" ]; then
+    exec bash "$0" "$@"
+fi
+
 # =============================================================================
 # QA-SQL Pipeline Execution Script
 # =============================================================================
@@ -37,14 +43,33 @@ THRESHOLD=0.5
 TIMEOUT=30
 MAX_WORKERS=4
 VERBOSE=false
+
+# -----------------------------------------------------------------------------
+# Dataset config (override via CLI flags below).
+#   DATA_DIR       — BIRD data root. Pipeline resolves {DATA_DIR}/dev_databases/
+#                    and {DATA_DIR}/schemas/ from this. (used by pipeline)
+#   DEV_JSON       — Questions file. (used by pipeline via --dev-json)
+#   TABLES_JSON    — BIRD's combined tables/schema file. Captured by the
+#                    pipeline (via --tables-json) for downstream evaluation
+#                    scripts; the pipeline itself reads per-DB schema JSONs
+#                    from {SCHEMAS_DIR}.
+#   DATABASES_DIR  — SQLite databases directory. Wired through --databases-dir
+#                    to override the default {DATA_DIR}/dev_databases.
+#   SCHEMAS_DIR    — Per-DB schema JSON directory. Wired through --schemas-dir
+#                    to override the default {DATA_DIR}/schemas.
+#
+# For test set, swap to:
+#   DEV_JSON="./data/bird_data/test.json"
+#   TABLES_JSON="./data/bird_data/test_tables.json"
+#   DATABASES_DIR="./data/bird_data/test_databases"
+# -----------------------------------------------------------------------------
 DATA_DIR="./data/bird_data/"
-# Default to the standard BIRD location. Swap to "./data/bird_data/test.json"
-# when running test.json. Empty string would make the pipeline use its own
-# default ({DATA_DIR}/dev.json); keeping it explicit here so it shows in logs.
 DEV_JSON="./data/bird_data/dev.json"
-OUTPUT_DIR="./output/gemma4/"
-OUTPUT_DIR="./output/claude_headless_v6/"
-# OUTPUT_DIR="./output/Sonnet4-6/"
+TABLES_JSON="./data/bird_data/dev_tables.json"
+DATABASES_DIR="./data/bird_data/dev_databases"
+SCHEMAS_DIR="./data/bird_data/schemas"
+
+OUTPUT_DIR="./output/Sonnet4-6/"
 
 # Colors for output
 RED='\033[0;31m'
@@ -84,9 +109,12 @@ show_help() {
     echo "  --workers N           Max parallel workers (default: 4)"
     echo ""
     echo "Path Options:"
-    echo "  -d, --data-dir PATH   Path to BIRD data directory"
-    echo "  -o, --output-dir PATH Path to output directory"
-    echo "  --dev-json PATH       Path to the questions JSON file (dev.json, test.json, or subset)"
+    echo "  -d, --data-dir PATH      Path to BIRD data directory"
+    echo "  -o, --output-dir PATH    Path to output directory"
+    echo "  --dev-json PATH          Path to questions JSON file (dev.json, test.json, or subset)"
+    echo "  --tables-json PATH       Path to combined tables.json (captured for downstream eval)"
+    echo "  --databases-dir PATH     Path to SQLite databases directory"
+    echo "  --schemas-dir PATH       Path to per-DB schema JSON directory"
     echo ""
     echo "Other Options:"
     echo "  -v, --verbose         Enable verbose output"
@@ -182,6 +210,18 @@ while [[ $# -gt 0 ]]; do
             ;;
         --dev-json)
             DEV_JSON="$2"
+            shift 2
+            ;;
+        --tables-json)
+            TABLES_JSON="$2"
+            shift 2
+            ;;
+        --databases-dir)
+            DATABASES_DIR="$2"
+            shift 2
+            ;;
+        --schemas-dir)
+            SCHEMAS_DIR="$2"
             shift 2
             ;;
         -v|--verbose)
@@ -285,6 +325,18 @@ if [[ -n "$DEV_JSON" ]]; then
     CMD="$CMD --dev-json $DEV_JSON"
 fi
 
+if [[ -n "$DATABASES_DIR" ]]; then
+    CMD="$CMD --databases-dir $DATABASES_DIR"
+fi
+
+if [[ -n "$SCHEMAS_DIR" ]]; then
+    CMD="$CMD --schemas-dir $SCHEMAS_DIR"
+fi
+
+if [[ -n "$TABLES_JSON" ]]; then
+    CMD="$CMD --tables-json $TABLES_JSON"
+fi
+
 if [[ "$VERBOSE" == true ]]; then
     CMD="$CMD -v"
 fi
@@ -306,6 +358,11 @@ echo "QA-SQL Pipeline"
 echo "=============================================="
 echo "Provider:    $PROVIDER"
 echo "Model:       $MODEL"
+echo "Data dir:    $DATA_DIR"
+echo "Questions:   $DEV_JSON"
+echo "Tables JSON: $TABLES_JSON"
+echo "Databases:   $DATABASES_DIR"
+echo "Schemas:     $SCHEMAS_DIR"
 if [[ "$BATCH_MODE" == true ]]; then
     if [[ -n "$BATCH_END" ]]; then
         echo "Mode:        Batch [$BATCH_START, $BATCH_END)"

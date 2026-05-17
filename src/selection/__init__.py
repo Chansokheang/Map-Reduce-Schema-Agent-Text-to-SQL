@@ -8,10 +8,13 @@ Handles SQL candidate selection through:
 
 from .executor import SQLExecutor, ExecutionResult
 from .judge import SQLJudge, JudgmentResult
+from .fixer import SQLFixer, FixerOutcome
 
 __all__ = [
     "SQLExecutor",
     "ExecutionResult",
     "SQLJudge",
     "JudgmentResult",
+    "SQLFixer",
+    "FixerOutcome",
 ]

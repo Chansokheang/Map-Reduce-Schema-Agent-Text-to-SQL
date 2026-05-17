@@ -17,6 +17,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from src.prompt import JUDGE_PROMPT
+from src.utils.llm_client import AnthropicExhaustedError
 
 
 @dataclass
@@ -57,8 +58,14 @@ class SQLJudge:
         """
         Format candidates for the judge prompt.
 
+        Each candidate is shown with its SQL AND its execution outcome
+        (row count + up to 3 sample rows) so the judge can distinguish
+        candidates that actually returned data from ones that returned
+        empty after the retry loop.
+
         Args:
-            candidates: List of candidate dicts with id, sql, strategy
+            candidates: List of candidate dicts with id, sql, strategy,
+                        row_count, sample_rows
 
         Returns:
             Formatted candidates string
@@ -70,6 +77,8 @@ class SQLJudge:
             strategy = c.get("strategy", "unknown")
             status = c.get("status", "success")
             iterations = c.get("iterations", 1)
+            row_count = c.get("row_count", 0)
+            sample_rows = c.get("sample_rows") or []
 
             header = f"Option {candidate_id} ({strategy})"
             if status == "refined":
@@ -77,9 +86,154 @@ class SQLJudge:
 
             lines.append(f"{header}:")
             lines.append(f"{sql}")
+
+            # Execution summary — critical for judge to compare outcomes
+            if row_count == 0:
+                lines.append(f"[Execution: 0 rows returned — EMPTY RESULT]")
+            else:
+                shown = min(len(sample_rows), 3)
+                suffix = "" if row_count == shown else f", showing first {shown}"
+                lines.append(f"[Execution: {row_count} row(s) returned{suffix}]")
+                for i, row in enumerate(sample_rows[:3], 1):
+                    # Truncate long row reprs to keep the prompt tight
+                    row_str = repr(row)
+                    if len(row_str) > 200:
+                        row_str = row_str[:200] + "..."
+                    lines.append(f"  Row {i}: {row_str}")
+
             lines.append("")
 
         return "\n".join(lines)
+
+    @staticmethod
+    def _extract_alias_to_table_map(sql: str) -> dict[str, str]:
+        """
+        Parse FROM/JOIN clauses to build {alias_or_tablename: real_table_name}.
+
+        Handles:
+          FROM trans AS T1                → T1 → trans, trans → trans
+          INNER JOIN account AS T2 ON ... → T2 → account, account → account
+          FROM frpm                       → frpm → frpm
+          JOIN [order] o ON ...           → o → order, order → order
+
+        Used to resolve `T1.amount` → `trans.amount` so the column-diff
+        detector can tell apart `loan.amount` from `trans.amount`.
+        """
+        alias_map: dict[str, str] = {}
+        # `FROM|JOIN <table>  [AS]?  <alias>?`  with optional bracket/backtick quoting
+        pattern = re.compile(
+            r"(?:FROM|JOIN)\s+[`\"\[]?([A-Za-z_][A-Za-z0-9_]*)[`\"\]]?"
+            r"(?:\s+(?:AS\s+)?([A-Za-z_][A-Za-z0-9_]*))?",
+            re.IGNORECASE,
+        )
+        for m in pattern.finditer(sql):
+            table = m.group(1)
+            alias = m.group(2)
+            if table.upper() in {"SELECT", "WHERE", "GROUP", "ORDER",
+                                 "HAVING", "LIMIT"}:
+                continue
+            alias_map[table.lower()] = table.lower()
+            if alias and alias.upper() not in {
+                "ON", "WHERE", "GROUP", "ORDER", "HAVING", "LIMIT",
+                "INNER", "LEFT", "RIGHT", "OUTER", "CROSS", "JOIN",
+            }:
+                alias_map[alias.lower()] = table.lower()
+        return alias_map
+
+    @staticmethod
+    def _extract_columns_set(sql: str) -> frozenset[str]:
+        """
+        Extract a set of normalized `table.column` references from a SQL.
+
+        Crucially, alias prefixes are RESOLVED to their real table name
+        using the FROM/JOIN map, so `T1.amount` (where T1 = trans)
+        becomes `trans.amount` — distinct from `T2.amount` (where T2 = loan)
+        which becomes `loan.amount`. Without this, candidates that pull
+        the same column name from different tables look identical and the
+        judge's column-diff detector misses the disagreement.
+
+        Bare column refs without an alias prefix can't be table-resolved
+        (we'd need a full schema-aware parser), so they're stored as just
+        the column name.
+        """
+        if not sql:
+            return frozenset()
+
+        skip_kw = {
+            "AS", "ON", "AND", "OR", "NOT", "IS", "NULL", "IN", "LIKE",
+            "BETWEEN", "WHERE", "FROM", "JOIN", "INNER", "LEFT", "RIGHT",
+            "OUTER", "CROSS", "GROUP", "BY", "ORDER", "HAVING", "LIMIT",
+            "OFFSET", "SELECT", "DISTINCT", "UNION", "INTERSECT", "EXCEPT",
+            "CASE", "WHEN", "THEN", "ELSE", "END", "ASC", "DESC", "ALL",
+            "EXISTS", "IF", "TRUE", "FALSE",
+        }
+
+        alias_map = SQLJudge._extract_alias_to_table_map(sql)
+        tokens: set[str] = set()
+
+        def _qualify(alias: str, col: str) -> str:
+            """Resolve `alias` → `<real_table>.<col>` when alias is known."""
+            real = alias_map.get(alias.lower(), alias.lower())
+            return f"{real}.{col.lower()}"
+
+        # alias.bareColumn → real_table.column
+        for m in re.finditer(r"\b([A-Za-z_]\w*)\.([A-Za-z_]\w*)", sql):
+            alias, col = m.group(1), m.group(2)
+            if col.upper() in skip_kw:
+                continue
+            tokens.add(_qualify(alias, col))
+
+        # alias.[Quoted Column] / alias.`Backtick Column`
+        for m in re.finditer(r"\b([A-Za-z_]\w*)\.\[([^\]\n]+)\]", sql):
+            tokens.add(_qualify(m.group(1), m.group(2).strip()))
+        for m in re.finditer(r"\b([A-Za-z_]\w*)\.`([^`\n]+)`", sql):
+            tokens.add(_qualify(m.group(1), m.group(2).strip()))
+
+        # Standalone bracketed / backtick identifiers (no alias prefix —
+        # we can't resolve to a table, so just store the name).
+        for m in re.finditer(r"(?<![A-Za-z_0-9.])\[([^\]\n]+)\]", sql):
+            tokens.add(m.group(1).strip().lower())
+        for m in re.finditer(r"(?<![A-Za-z_0-9.])`([^`\n]+)`", sql):
+            tokens.add(m.group(1).strip().lower())
+
+        # Bare column refs next to comparison operators (no alias) —
+        # also unqualifiable, store as bare name.
+        compare_pat = re.compile(
+            r"\b([A-Za-z_]\w*)\s*"
+            r"(?:=|>=|<=|<>|!=|>|<|"
+            r"\bLIKE\b|\bIN\b\s*\(|\bIS\b\s+(?:NOT\s+)?\bNULL\b|\bBETWEEN\b)",
+            re.IGNORECASE,
+        )
+        for m in compare_pat.finditer(sql):
+            col = m.group(1)
+            if col.upper() not in skip_kw:
+                tokens.add(col.lower())
+
+        # Bare column refs inside aggregates: COUNT(col), SUM(col), etc.
+        agg_pat = re.compile(
+            r"\b(?:COUNT|SUM|AVG|MIN|MAX)\s*\(\s*(?:DISTINCT\s+)?"
+            r"([A-Za-z_]\w*)\s*\)",
+            re.IGNORECASE,
+        )
+        for m in agg_pat.finditer(sql):
+            col = m.group(1)
+            if col.upper() not in skip_kw and col != "*":
+                tokens.add(col.lower())
+
+        return frozenset(tokens)
+
+    @staticmethod
+    def _candidates_differ_on_columns(successful: list[dict[str, Any]]) -> bool:
+        """
+        Return True when at least two successful candidates reference
+        different column sets. Used to decide whether to inject the
+        schema into the judge prompt.
+        """
+        if len(successful) < 2:
+            return False
+        col_sets = [SQLJudge._extract_columns_set(c.get("sql", "")) for c in successful]
+        first = col_sets[0]
+        return any(s != first for s in col_sets[1:])
 
     def _parse_judgment(self, response: str) -> dict[str, Any]:
         """
@@ -108,7 +262,8 @@ class SQLJudge:
         candidates: list[Any],
         execution_results: list[Any],
         nl_query: str,
-        evidence: str = None
+        evidence: str = None,
+        schema_str: str = None,
     ) -> JudgmentResult:
         """
         Main entry point for judging.
@@ -132,13 +287,17 @@ class SQLJudge:
         for candidate in candidates:
             result = result_map.get(candidate.candidate_id)
             if result and result.success:
+                # Keep first 3 rows as samples so the judge can see the actual
+                # output shape and compare empty vs non-empty candidates.
+                sample_rows = (result.result or [])[:3]
                 successful.append({
                     "candidate_id": candidate.candidate_id,
                     "sql": result.sql,  # Use executed SQL (may be refined)
                     "strategy": candidate.strategy_name,
                     "status": result.status,
                     "iterations": result.iterations,
-                    "row_count": result.row_count
+                    "row_count": result.row_count,
+                    "sample_rows": sample_rows,
                 })
 
         total = len(candidates)
@@ -184,7 +343,8 @@ class SQLJudge:
             successful=successful,
             nl_query=nl_query,
             evidence=evidence,
-            total=total
+            total=total,
+            schema_str=schema_str,
         )
 
     def _llm_judge(
@@ -192,7 +352,8 @@ class SQLJudge:
         successful: list[dict[str, Any]],
         nl_query: str,
         evidence: str,
-        total: int
+        total: int,
+        schema_str: str = None,
     ) -> JudgmentResult:
         """
         Use LLM to judge and select the best candidate.
@@ -210,11 +371,25 @@ class SQLJudge:
         candidates_str = self._format_candidates(successful)
         evidence_str = evidence if evidence else "No additional hints provided."
 
+        # Conditionally inject schema when candidates differ on which columns
+        # they use. This catches cases like q56 (schools.City vs schools.MailCity)
+        # where the wrong column is more "internally consistent" than the right
+        # one and would otherwise win on majority alone.
+        schema_section = ""
+        if schema_str and self._candidates_differ_on_columns(successful):
+            schema_section = (
+                "\nDatabase Schema (relevant tables — candidates DIFFER on "
+                "column choice; use the descriptions below to pick the column "
+                "whose meaning matches the question):\n"
+                f"{schema_str}\n"
+            )
+
         # Build prompt from template
         user_prompt = self.prompt_config["user_template"].format(
             question=nl_query,
             evidence=evidence_str,
-            candidates=candidates_str
+            schema_section=schema_section,
+            candidates=candidates_str,
         )
 
         try:
@@ -262,8 +437,12 @@ class SQLJudge:
                 successful_candidates=len(successful)
             )
 
+        except AnthropicExhaustedError:
+            # Terminal API failure — halt the batch rather than fall back to
+            # "first successful candidate" which would ship a non-judged SQL.
+            raise
         except (json.JSONDecodeError, ValueError, TypeError, Exception) as e:
-            # LLM failed → pick first successful candidate
+            # LLM returned unparseable output → pick first successful candidate
             c = successful[0]
             return JudgmentResult(
                 selected_id=c["candidate_id"],

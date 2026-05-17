@@ -1,3 +1,4 @@
+import argparse
 import sqlite3
 import json
 from pathlib import Path
@@ -184,33 +185,92 @@ def get_schema_with_samples(db_path, dev_tables_lookup, sample_limit=3, column_m
     return schema
 
 
-def main():
+def parse_args():
     base_dir = Path(__file__).parent.parent.parent
-    db_dir = base_dir / "data" / "bird_data" / "dev_databases"
-    dev_tables_path = base_dir / "data" / "bird_data" / "dev_tables.json"
-    output_dir = base_dir / "data" / "bird_data" / "schemas"
-    column_meaning_path = base_dir / "data" / "column_meaning.json"
+    parser = argparse.ArgumentParser(
+        description="Extract per-database schema JSONs (with columns, keys, sample rows, "
+                    "and optional column descriptions) from a BIRD-style data layout.",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  # Dev (default)
+  python -m src.processing.extract_schema
+
+  # Test set
+  python -m src.processing.extract_schema \\
+      --db-dir   ./data/bird_data/test_databases \\
+      --tables-json ./data/bird_data/test_tables.json \\
+      --output-dir  ./data/bird_data/test_schemas
+
+  # Custom sample size + skip column meanings
+  python -m src.processing.extract_schema --sample-limit 10 --column-meaning ""
+        """,
+    )
+    parser.add_argument(
+        "--db-dir",
+        type=Path,
+        default=base_dir / "data" / "bird_data" / "dev_databases",
+        help="Directory containing SQLite databases (default: data/bird_data/dev_databases)",
+    )
+    parser.add_argument(
+        "--tables-json",
+        type=Path,
+        default=base_dir / "data" / "bird_data" / "dev_tables.json",
+        help="BIRD's combined tables.json for readable names "
+             "(default: data/bird_data/dev_tables.json)",
+    )
+    parser.add_argument(
+        "--output-dir",
+        type=Path,
+        default=base_dir / "data" / "bird_data" / "schemas",
+        help="Output directory for per-DB schema JSONs (default: data/bird_data/schemas)",
+    )
+    parser.add_argument(
+        "--column-meaning",
+        type=Path,
+        default=base_dir / "data" / "column_meaning.json",
+        help="Path to column_meaning.json for column descriptions. "
+             "Pass empty string to skip (default: data/column_meaning.json)",
+    )
+    parser.add_argument(
+        "--sample-limit",
+        type=int,
+        default=5,
+        help="Number of sample rows to extract per table (default: 5)",
+    )
+    return parser.parse_args()
+
+
+def main():
+    args = parse_args()
+    db_dir = args.db_dir
+    dev_tables_path = args.tables_json
+    output_dir = args.output_dir
+    column_meaning_path = args.column_meaning
 
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    # Load readable names from dev_tables.json
-    print("Loading dev_tables.json for readable names...")
+    # Load readable names from tables JSON
+    print(f"Loading {dev_tables_path.name} for readable names...")
     dev_tables_lookup = load_dev_tables(dev_tables_path)
     print(f"Loaded readable names for {len(dev_tables_lookup)} databases\n")
 
-    # Load column descriptions from column_meaning.json
-    column_meanings = load_column_meanings(column_meaning_path)
+    # Load column descriptions from column_meaning.json (optional)
+    column_meanings = {}
+    if column_meaning_path and str(column_meaning_path):
+        column_meanings = load_column_meanings(column_meaning_path)
     if column_meanings:
-        print(f"Loaded {len(column_meanings)} column descriptions from column_meaning.json\n")
+        print(f"Loaded {len(column_meanings)} column descriptions from {column_meaning_path.name}\n")
     else:
-        print("column_meaning.json not found — skipping descriptions\n")
+        print("column_meaning.json not found or skipped — proceeding without descriptions\n")
 
     db_files = list(db_dir.glob("**/*.sqlite"))
-    print(f"Found {len(db_files)} databases\n")
+    print(f"Found {len(db_files)} databases under {db_dir}\n")
 
     for db_path in db_files:
         db_name = db_path.stem
-        schema = get_schema_with_samples(db_path, dev_tables_lookup, sample_limit=5,
+        schema = get_schema_with_samples(db_path, dev_tables_lookup,
+                                         sample_limit=args.sample_limit,
                                          column_meanings=column_meanings)
 
         # Save to JSON

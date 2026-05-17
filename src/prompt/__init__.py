@@ -16,6 +16,7 @@ from .focused_schema import FOCUSED_SCHEMA_PROMPT
 from .full_profile import FULL_PROFILE_PROMPT
 from .judge import JUDGE_PROMPT
 from .last_resort import LAST_RESORT_PROMPT
+from .fixer import FIXER_PROMPT
 
 # All prompts indexed by strategy name
 STRATEGY_PROMPTS = {
@@ -34,5 +35,6 @@ __all__ = [
     "FULL_PROFILE_PROMPT",
     "JUDGE_PROMPT",
     "LAST_RESORT_PROMPT",
+    "FIXER_PROMPT",
     "STRATEGY_PROMPTS",
 ]

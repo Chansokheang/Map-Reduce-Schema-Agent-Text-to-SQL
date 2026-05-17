@@ -17,6 +17,7 @@ from pathlib import Path
 from typing import Any
 
 from src.prompt import LAST_RESORT_PROMPT
+from src.utils.llm_client import AnthropicExhaustedError
 
 
 @dataclass
@@ -151,6 +152,9 @@ Fix the SQL to resolve this issue. If the schema shows [Values: ...] for a colum
             )
             return self._extract_sql(response) or sql
 
+        except AnthropicExhaustedError:
+            # Terminal API failure — halt the batch.
+            raise
         except Exception:
             return sql
 
@@ -525,6 +529,9 @@ Fix the SQL to resolve this issue. If the schema shows [Values: ...] for a colum
                 status="last_resort" if success else "rejected"
             )
 
+        except AnthropicExhaustedError:
+            # Terminal API failure — halt the batch.
+            raise
         except Exception as e:
             elapsed_ms = (time.perf_counter() - start_time) * 1000.0
             return ExecutionResult(

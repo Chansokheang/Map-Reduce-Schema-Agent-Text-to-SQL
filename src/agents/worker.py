@@ -14,6 +14,8 @@ from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from typing import Any
 
+from ..utils.llm_client import AnthropicRefusalError
+
 
 @dataclass
 class ColumnRelevance:
@@ -230,11 +232,19 @@ class SchemaWorker:
                     - score is between 0 and 1
                     - use 0 if unrelated, 1 if clearly matches
                     """
-        response = self.llm_client.complete(
-            prompt=prompt,
-            max_tokens=128,
-            temperature=0.0
-        )
+        try:
+            response = self.llm_client.complete(
+                prompt=prompt,
+                max_tokens=128,
+                temperature=0.0
+            )
+        except AnthropicRefusalError:
+            print(f"  [worker._match_score] refusal on entity={entity_name!r} — heuristic fallback.")
+            score, reason, _ = self._heuristic_match(
+                f"{entity_name} {entity_description}".strip(),
+                [query_component]
+            )
+            return score, reason
         try:
             data = self._parse_json_response(response)
             score = float(data.get("score", 0.0))
@@ -437,6 +447,11 @@ EVIDENCE Guidelines (CRITICAL):
 - If evidence contains a formula like "rate = A / B", check if this table has columns A or B
 - Evidence is from domain experts - trust it for column/table identification
 
+UNUSEFUL / DEPRECATED COLUMNS (CRITICAL):
+- If a column's description contains words like "unuseful", "deprecated", "DO NOT use", or redirects you to another column (e.g., "use schools.District instead"), you MUST EXCLUDE that column from `relevant_columns` even if the question seems to match its name.
+- Follow the redirect: if a column's description says "for X questions use Y instead", do NOT include the deprecated column; the redirect target belongs to another table and will be picked up by that table's worker.
+- Example: `satscores.dname` description says "DO NOT use for district questions; use schools.District instead." → EXCLUDE `dname` from `relevant_columns` for satscores. A district-oriented question should rely on schools.District, not satscores.dname.
+
 Component Type Guidelines:
 - [entity]: Look for tables that store this type of data
 - [filter]: Look for columns that can filter by this condition
@@ -451,11 +466,15 @@ Examples:
 
 Be strict: if the question doesn't need data from "{table_readable_name}", score 0.0."""
 
-        response = self.llm_client.complete(
-            prompt=prompt,
-            max_tokens=256,
-            temperature=0.0
-        )
+        try:
+            response = self.llm_client.complete(
+                prompt=prompt,
+                max_tokens=256,
+                temperature=0.0
+            )
+        except AnthropicRefusalError:
+            print(f"  [worker._table_relevance_llm] refusal on table={table_readable_name!r} — neutral 0.5 score.")
+            return {"relevant": True, "score": 0.5, "reason": "anthropic_refusal_fallback", "relevant_columns": []}
         return self._parse_json_response(response)
 
     def _heuristic_table_relevance(

@@ -15,6 +15,7 @@ from typing import Any
 from concurrent.futures import ThreadPoolExecutor
 
 from .prompt_builder import PromptBuilder, ContextStrategy
+from ..utils.llm_client import AnthropicExhaustedError
 
 
 @dataclass
@@ -141,6 +142,10 @@ class CandidateGenerator:
                 }
             )
 
+        except AnthropicExhaustedError:
+            # Terminal API failure — bubble up so the batch halts instead of
+            # writing a placeholder SQL that could be picked by the judge.
+            raise
         except Exception as e:
             return SQLCandidate(
                 candidate_id=candidate_id,
@@ -194,6 +199,24 @@ class CandidateGenerator:
 
         candidates = []
 
+        # SERIAL MODE (active): fire the 5 strategy calls one at a time.
+        # Same rationale as the schema agent — avoids concurrent bursts that
+        # trigger Anthropic 529 `overloaded_error`. The `parallel` argument is
+        # intentionally ignored while retry+backoff isn't wired in.
+        #
+        # PARALLEL MODE is preserved below (commented) for easy restoration.
+        # =============================================================================
+        # for idx, strategy in enumerate(strategy_order):
+        #     prompts = all_prompts[strategy]
+        #     candidate = self.generate_candidate(
+        #         prompts=prompts,
+        #         strategy=strategy,
+        #         candidate_id=idx + 1
+        #     )
+        #     candidates.append(candidate)
+
+        # --- Previous parallel / conditional-sequential implementation ---
+        # =============================================================================
         if parallel and self.llm_client:
             # Generate candidates in parallel
             with ThreadPoolExecutor(max_workers=5) as executor:
@@ -207,7 +230,7 @@ class CandidateGenerator:
                         idx + 1  # candidate_id: 1-5
                     )
                     futures.append(future)
-
+        
                 # Collect results in order
                 for future in futures:
                     candidates.append(future.result())
