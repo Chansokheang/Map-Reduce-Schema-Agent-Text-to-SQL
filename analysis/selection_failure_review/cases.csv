@@ -1,0 +1,730 @@
+﻿question_id,db_id,manual_primary_difference,question,evidence,execution_diagnostic,selected_sql,nearest_passing_candidate,nearest_passing_sql,passing_saved_candidates
+15,california_schools,aggregation_grain,Which active district has the highest average score in Reading?,,other_mismatch,"SELECT s.District
+FROM satscores ss
+INNER JOIN schools s ON ss.cds = s.CDSCode
+WHERE s.StatusType = 'Active'
+GROUP BY s.District
+ORDER BY AVG(ss.AvgScrRead) DESC
+LIMIT 1",candidate_focused_schema,"SELECT s.District
+FROM schools s
+INNER JOIN satscores sat ON s.CDSCode = sat.cds
+WHERE s.StatusType = 'Active'
+ORDER BY sat.AvgScrRead DESC
+LIMIT 1","[""candidate_focused_schema""]"
+48,california_schools,population_and_join_membership,What is the ratio of merged Unified School District schools in Orange County to merged Elementary School District schools?,Elementary School District refers to DOC = 52; Unified School District refers to DOC = 54.,other_mismatch,"SELECT
+    CAST(SUM(CASE WHEN DOC = '54' AND County = 'Orange' AND StatusType = 'Merged' THEN 1 ELSE 0 END) AS REAL) /
+    SUM(CASE WHEN DOC = '52' AND StatusType = 'Merged' THEN 1 ELSE 0 END)
+FROM schools",candidate_sme_metadata,"SELECT
+    COUNT(CASE WHEN DOC = '54' THEN 1 END) * 1.0 / COUNT(CASE WHEN DOC = '52' THEN 1 END)
+FROM schools
+WHERE StatusType = 'Merged'
+  AND County = 'Orange'","[""candidate_sme_metadata"", ""candidate_minimal_profile"", ""candidate_focused_schema""]"
+54,california_schools,population_and_join_membership,Please specify all of the schools and their related mailing zip codes that are under Avetik Atoian's administration.,,other_mismatch,"SELECT School, MailZip
+FROM schools
+WHERE (AdmFName1 = 'Avetik' AND AdmLName1 = 'Atoian')
+   OR (AdmFName2 = 'Avetik' AND AdmLName2 = 'Atoian')
+   OR (AdmFName3 = 'Avetik' AND AdmLName3 = 'Atoian')",candidate_full_profile,"SELECT School, MailZip
+FROM schools
+WHERE AdmFName1 = 'Avetik' AND AdmLName1 = 'Atoian'","[""candidate_focused_schema"", ""candidate_full_profile""]"
+56,california_schools,field_or_relationship_meaning,"Of all the schools with a mailing state address in California, how many are active in San Joaquin city?",,other_mismatch,SELECT COUNT(*) FROM schools WHERE MailState = 'CA' AND StatusType = 'Active' AND MailCity = 'San Joaquin',candidate_focused_schema,SELECT COUNT(*) FROM schools WHERE MailState = 'CA' AND StatusType = 'Active' AND City = 'San Joaquin',"[""candidate_full_schema"", ""candidate_focused_schema"", ""candidate_full_profile""]"
+58,california_schools,output_attributes_and_representation,What is the phone number and extension number for the school with the zip code 95203-3704? Indicate the school's name.,,column_order,"SELECT School, Phone, Ext FROM schools WHERE Zip = '95203-3704'",candidate_sme_metadata,"SELECT Phone, Ext, School FROM schools WHERE Zip = '95203-3704'","[""candidate_sme_metadata"", ""candidate_full_profile""]"
+72,california_schools,aggregation_grain,How many students from the ages of 5 to 17 are enrolled at the State Special School school in Fremont for the 2014-2015 academic year?,State Special School means EdOpsCode = 'SSS',other_mismatch,"SELECT SUM(frpm.[Enrollment (Ages 5-17)])
+FROM frpm
+INNER JOIN schools ON frpm.CDSCode = schools.CDSCode
+WHERE schools.EdOpsCode = 'SSS'
+  AND schools.City = 'Fremont'
+  AND frpm.[Academic Year] = '2014-2015'",candidate_minimal_profile,"SELECT T2.[Enrollment (Ages 5-17)]
+FROM schools AS T1
+INNER JOIN frpm AS T2 ON T1.CDSCode = T2.CDSCode
+WHERE T1.City = 'Fremont'
+AND T2.[Educational Option Type] = 'State Special School'
+AND T2.[Academic Year] = '2014-2015'","[""candidate_minimal_profile""]"
+77,california_schools,field_or_relationship_meaning,Which schools served a grade span of Kindergarten to 9th grade in the county of Los Angeles and what is its Percent (%) Eligible FRPM (Ages 5-17)?,Percent (%) Eligible FRPM (Ages 5-17) can be acquired by `FRPM Count (Ages 5-17)` / `Enrollment (Ages 5-17)` * 100,other_mismatch,"SELECT
+    frpm.[School Name],
+    frpm.[FRPM Count (Ages 5-17)] / frpm.[Enrollment (Ages 5-17)] * 100 AS [Percent (%) Eligible FRPM (Ages 5-17)]
+FROM frpm
+INNER JOIN schools ON frpm.CDSCode = schools.CDSCode
+WHERE schools.County = 'Los Angeles'
+  AND schools.GSserved = 'K-9'",candidate_focused_schema,"SELECT T2.School, T1.[FRPM Count (Ages 5-17)] / T1.[Enrollment (Ages 5-17)] * 100 AS [Percent (%) Eligible FRPM (Ages 5-17)]
+FROM frpm AS T1
+INNER JOIN schools AS T2 ON T1.CDSCode = T2.CDSCode
+WHERE T2.GSserved = 'K-9'
+  AND T2.County = 'Los Angeles'","[""candidate_focused_schema""]"
+83,california_schools,population_and_join_membership,"Of the schools that offers a magnet program serving a grade span of Kindergarten to 8th grade, how many offers Multiple Provision Types? List the number of cities that offers a Kindergarten to 8th grade span and indicate how many schools are there serving such grade span for each city.",Kindergarten to 8th grade refers to K-8; 'Offers a magnet program' means Magnet = 1; Multiple Provision Types refers to `NSLP Provision Status` = 'Multiple Provision Types',other_mismatch,"SELECT 
+    (SELECT COUNT(*) 
+     FROM schools s2
+     INNER JOIN frpm f2 ON s2.CDSCode = f2.CDSCode
+     WHERE s2.Magnet = 1 
+     AND f2.[Low Grade] = 'K' 
+     AND f2.[High Grade] = '8'
+     AND f2.[NSLP Provision Status] = 'Multiple Provision Types') AS multiple_provision_count,
+    s.City,
+    COUNT(*) AS num_schools
+FROM schools s
+INNER JOIN frpm f ON s.CDSCode = f.CDSCode
+WHERE f.[Low Grade] = 'K' 
+AND f.[High Grade] = '8'
+GROUP BY s.City
+ORDER BY s.City",candidate_full_schema,"SELECT
+    s.City,
+    COUNT(*) AS num_schools
+FROM schools s
+JOIN frpm f ON s.CDSCode = f.CDSCode
+WHERE s.Magnet = 1
+    AND f.[Low Grade] = 'K'
+    AND f.[High Grade] = '8'
+    AND f.[NSLP Provision Status] = 'Multiple Provision Types'
+GROUP BY s.City","[""candidate_full_schema"", ""candidate_sme_metadata"", ""candidate_focused_schema""]"
+84,california_schools,aggregation_grain,What are the two most common first names among the school administrators? Indicate the district to which they administer.,,other_mismatch,"SELECT AdmFName1, District
+FROM schools
+WHERE AdmFName1 IS NOT NULL
+GROUP BY AdmFName1
+ORDER BY COUNT(AdmFName1) DESC
+LIMIT 2",candidate_full_schema,"SELECT AdmFName1, District
+FROM schools
+WHERE AdmFName1 IN (
+    SELECT AdmFName1
+    FROM schools
+    WHERE AdmFName1 IS NOT NULL
+    GROUP BY AdmFName1
+    ORDER BY COUNT(AdmFName1) DESC
+    LIMIT 2
+)","[""candidate_full_schema"", ""candidate_minimal_profile""]"
+101,financial,top_n_ties_and_row_selection,List out the accounts who have the earliest trading date in 1995 ?,,other_mismatch,"SELECT DISTINCT account_id FROM trans WHERE STRFTIME('%Y', date) = '1995' AND date = ( SELECT MIN(date) FROM trans WHERE STRFTIME('%Y', date) = '1995' )",candidate_focused_schema,"SELECT account_id FROM trans WHERE strftime('%Y', date) = '1995' ORDER BY date ASC LIMIT 1","[""candidate_focused_schema""]"
+107,financial,population_and_join_membership,What is the gender of the oldest client who opened his/her account in the highest average salary branch?,Earlier birthdate refers to older age; A11 refers to average salary,other_mismatch,"SELECT c.gender
+FROM client c
+INNER JOIN disp d ON c.client_id = d.client_id
+INNER JOIN account a ON d.account_id = a.account_id
+INNER JOIN district dt ON a.district_id = dt.district_id
+WHERE dt.A11 = (SELECT MAX(A11) FROM district)
+ORDER BY c.birth_date ASC
+LIMIT 1",candidate_sme_metadata,"SELECT c.gender
+FROM client c
+INNER JOIN disp d ON c.client_id = d.client_id
+INNER JOIN account a ON d.account_id = a.account_id
+INNER JOIN district dist ON a.district_id = dist.district_id
+WHERE dist.district_id = (
+    SELECT district_id
+    FROM district
+    ORDER BY A11 DESC
+    LIMIT 1
+)
+AND d.type = 'OWNER'
+AND c.birth_date IS NOT NULL
+ORDER BY c.birth_date ASC
+LIMIT 1","[""candidate_sme_metadata""]"
+108,financial,predicates_arithmetic_and_types,"For the client who applied the biggest loan, what was his/her first amount of transaction after opened the account?",,other_mismatch,"SELECT t.amount
+FROM trans t
+JOIN account a ON t.account_id = a.account_id
+WHERE a.account_id = (
+    SELECT account_id
+    FROM loan
+    ORDER BY amount DESC
+    LIMIT 1
+)
+AND t.date > a.date
+ORDER BY t.date ASC
+LIMIT 1",candidate_sme_metadata,"SELECT t.amount
+FROM trans t
+JOIN account a ON t.account_id = a.account_id
+WHERE t.account_id = (
+    SELECT account_id
+    FROM loan
+    ORDER BY amount DESC
+    LIMIT 1
+)
+AND t.date >= a.date
+ORDER BY t.date ASC
+LIMIT 1","[""candidate_full_schema"", ""candidate_sme_metadata""]"
+131,financial,aggregation_grain,Which district has highest active loan?,"A3 refers to district names; Active loan refers to running contracts; Status = 'C' stands for running contract, OK so far; Status = 'D' stands for running contract, client in debt",other_mismatch,"SELECT T3.A3
+FROM loan AS T1
+INNER JOIN account AS T2 ON T1.account_id = T2.account_id
+INNER JOIN district AS T3 ON T2.district_id = T3.district_id
+WHERE T1.status IN ('C', 'D')
+GROUP BY T3.district_id
+ORDER BY COUNT(T1.loan_id) DESC
+LIMIT 1",candidate_focused_schema,"SELECT T3.A3
+FROM loan T1
+INNER JOIN account T2 ON T1.account_id = T2.account_id
+INNER JOIN district T3 ON T2.district_id = T3.district_id
+WHERE T1.status IN ('C', 'D')
+GROUP BY T3.A3
+ORDER BY COUNT(T1.account_id) DESC
+LIMIT 1","[""candidate_focused_schema""]"
+165,financial,output_attributes_and_representation,Please list all the transactions made by accounts from district 5.,,extra_columns,"SELECT t.*
+FROM trans t
+INNER JOIN account a ON t.account_id = a.account_id
+WHERE a.district_id = 5",candidate_full_profile,"SELECT T1.trans_id
+FROM trans AS T1
+INNER JOIN account AS T2 ON T1.account_id = T2.account_id
+WHERE T2.district_id = 5","[""candidate_full_profile""]"
+214,toxicology,population_and_join_membership,What type of label is not on molecules with atoms with tin?,tin refers to element ! = 'sn'; label = '+' mean molecules are carcinogenic; label = '-' means molecules are non-carcinogenic,other_mismatch,SELECT DISTINCT label FROM molecule WHERE label NOT IN ( SELECT DISTINCT m.label FROM molecule m INNER JOIN atom a ON m.molecule_id = a.molecule_id WHERE a.element = 'sn' ),candidate_minimal_profile,"SELECT DISTINCT label
+FROM molecule
+WHERE molecule_id NOT IN (
+    SELECT molecule_id
+    FROM atom
+    WHERE element = 'sn'
+)","[""candidate_minimal_profile""]"
+239,toxicology,population_and_join_membership,How many connections does the atom 19 have?,connections refers to bond_id; atom 19 refers to atom_id like 'TR%_19';,other_mismatch,"SELECT COUNT(bond_id)
+FROM connected
+WHERE atom_id LIKE 'TR%_19' OR atom_id2 LIKE 'TR%_19'",candidate_full_schema,SELECT COUNT(bond_id) FROM connected WHERE atom_id LIKE 'TR%_19',"[""candidate_full_schema"", ""candidate_sme_metadata"", ""candidate_full_profile""]"
+248,toxicology,output_attributes_and_representation,"What are the atoms of the triple bond with the molecule ""TR041""?",TR041 is the molecule id; triple bond refers to bond_type = '#';,missing_columns,SELECT T1.atom_id FROM atom AS T1 INNER JOIN connected AS T2 ON T1.atom_id = T2.atom_id INNER JOIN bond AS T3 ON T2.bond_id = T3.bond_id WHERE T3.molecule_id = 'TR041' AND T3.bond_type = '#',candidate_minimal_profile,"SELECT T1.atom_id, T1.atom_id2
+FROM connected T1
+INNER JOIN bond T2 ON T1.bond_id = T2.bond_id
+WHERE T2.molecule_id = 'TR041' AND T2.bond_type = '#'","[""candidate_minimal_profile"", ""candidate_full_profile""]"
+280,toxicology,output_attributes_and_representation,Enumerate the bond ID of triple bond type molecules and tell me if they are carcinogenic or not.,triple bond refers to bond_type = '#'; label = '+' mean molecules are carcinogenic; label = '-' means molecules are non-carcinogenic,other_mismatch,"SELECT
+    bond.bond_id,
+    CASE WHEN molecule.label = '+' THEN 'carcinogenic' ELSE 'non-carcinogenic' END AS carcinogenic
+FROM bond
+INNER JOIN molecule ON bond.molecule_id = molecule.molecule_id
+WHERE bond.bond_type = '#'",candidate_focused_schema,"SELECT T1.bond_id, T2.label
+FROM bond AS T1
+INNER JOIN molecule AS T2 ON T1.molecule_id = T2.molecule_id
+WHERE T1.bond_type = '#'","[""candidate_focused_schema""]"
+288,toxicology,output_attributes_and_representation,Identify whether the molecule that contains atom TR001_1 is carcinogenic.,label = '+' mean molecules are carcinogenic;,other_mismatch,SELECT CASE WHEN T2.label = '+' THEN 'Yes' ELSE 'No' END AS is_carcinogenic FROM atom AS T1 INNER JOIN molecule AS T2 ON T1.molecule_id = T2.molecule_id WHERE T1.atom_id = 'TR001_1',candidate_minimal_profile,"SELECT m.label
+FROM atom a
+INNER JOIN molecule m ON a.molecule_id = m.molecule_id
+WHERE a.atom_id = 'TR001_1'","[""candidate_minimal_profile"", ""candidate_focused_schema""]"
+323,toxicology,output_attributes_and_representation,Is molecule TR000 is carcinogenic or not?,label = '+' mean molecules are carcinogenic; label = '-' means molecules are non-carcinogenic,other_mismatch,"SELECT CASE WHEN label = '+' THEN 'Carcinogenic' ELSE 'Non-Carcinogenic' END AS carcinogenic_status
+FROM molecule
+WHERE molecule_id = 'TR000'",candidate_full_profile,SELECT label FROM molecule WHERE molecule_id = 'TR000',"[""candidate_full_profile""]"
+326,toxicology,population_and_join_membership,Which molecule consisted of Sulphur atom with double bond?,sulphur refers to element - 's'; double bond refers to bond_type = ' = ';,other_mismatch,"SELECT DISTINCT T1.molecule_id
+FROM atom AS T1
+INNER JOIN connected AS T2 ON T1.atom_id = T2.atom_id
+INNER JOIN bond AS T3 ON T2.bond_id = T3.bond_id
+WHERE T1.element = 's' AND T3.bond_type = '='",candidate_sme_metadata,"SELECT DISTINCT T1.molecule_id
+FROM atom AS T1
+INNER JOIN bond AS T2 ON T1.molecule_id = T2.molecule_id
+WHERE T1.element = 's' AND T2.bond_type = '='","[""candidate_full_schema"", ""candidate_sme_metadata""]"
+335,toxicology,population_and_join_membership,What is the total number of molecules with double bonded oxygen?,oxygen refers to element = 'o'; double bond refers to bond_type = ' = ';,other_mismatch,"SELECT COUNT(DISTINCT T1.molecule_id)
+FROM atom T1
+INNER JOIN connected T2 ON T1.atom_id = T2.atom_id
+INNER JOIN bond T3 ON T2.bond_id = T3.bond_id
+WHERE T1.element = 'o'
+  AND T3.bond_type = '='",candidate_focused_schema,"SELECT COUNT(DISTINCT T1.molecule_id)
+FROM atom AS T1
+INNER JOIN bond AS T2 ON T1.molecule_id = T2.molecule_id
+WHERE T1.element = 'o' AND T2.bond_type = '='","[""candidate_focused_schema"", ""candidate_full_profile""]"
+337,toxicology,population_and_join_membership,List the element and bond type included in the molecule with molecule ID of TR002.,TR002 is the molecule id,other_mismatch,"SELECT DISTINCT T1.element, T3.bond_type
+FROM atom AS T1
+INNER JOIN connected AS T2 ON T1.atom_id = T2.atom_id
+INNER JOIN bond AS T3 ON T2.bond_id = T3.bond_id
+WHERE T1.molecule_id = 'TR002'",candidate_full_profile,"SELECT DISTINCT T1.element, T2.bond_type
+FROM atom AS T1
+INNER JOIN bond AS T2 ON T1.molecule_id = T2.molecule_id
+WHERE T1.molecule_id = 'TR002'","[""candidate_focused_schema"", ""candidate_full_profile""]"
+376,card_games,predicates_arithmetic_and_types,What are the card layout of cards with keyword of flying?,,other_mismatch,"SELECT DISTINCT layout
+FROM cards
+WHERE keywords LIKE '%Flying%'",candidate_sme_metadata,SELECT DISTINCT layout FROM cards WHERE keywords = 'Flying',"[""candidate_sme_metadata""]"
+384,card_games,population_and_join_membership,List down the uuid for legacy cards and the foreign language of these cards.,legacy card refers to format = 'legacy'; foreign language refers to language in foreign_data,other_mismatch,"SELECT T1.uuid, T2.language FROM legalities AS T1 INNER JOIN foreign_data AS T2 ON T1.uuid = T2.uuid WHERE T1.format = 'legacy'",candidate_focused_schema,"SELECT DISTINCT c.uuid, fd.language
+FROM cards c
+INNER JOIN legalities l ON c.uuid = l.uuid
+INNER JOIN foreign_data fd ON c.uuid = fd.uuid
+WHERE l.format = 'legacy'","[""candidate_minimal_profile"", ""candidate_focused_schema""]"
+412,card_games,field_or_relationship_meaning,"What is the foreign name of the card in French of type Creature, normal layout and black border color, by artist Matthew D. Wilson?",in French refers to language = 'French'; black border color refers to borderColor = 'black',other_mismatch,"SELECT fd.name
+FROM cards c
+INNER JOIN foreign_data fd ON c.uuid = fd.uuid
+WHERE fd.language = 'French'
+  AND c.type LIKE '%Creature%'
+  AND c.layout = 'normal'
+  AND c.borderColor = 'black'
+  AND c.artist = 'Matthew D. Wilson'",candidate_full_schema,"SELECT fd.name
+FROM cards c
+INNER JOIN foreign_data fd ON c.uuid = fd.uuid
+WHERE fd.language = 'French'
+  AND c.types = 'Creature'
+  AND c.layout = 'normal'
+  AND c.borderColor = 'black'
+  AND c.artist = 'Matthew D. Wilson'","[""candidate_full_schema""]"
+436,card_games,output_attributes_and_representation,How many cards have frame effect as extendedart? List out the id of those cards.,"
+frame effect as extendedart refers to frameEffects = 'extendedart'
+",other_mismatch,"SELECT COUNT(id), GROUP_CONCAT(id) FROM cards WHERE frameEffects = 'extendedart'",candidate_full_profile,"SELECT id
+FROM cards
+WHERE frameEffects = 'extendedart'","[""candidate_full_profile""]"
+449,card_games,field_or_relationship_meaning,What is the language of the card that has azorius watermark? List out the type of this card.,,other_mismatch,"SELECT fd.language, fd.type
+FROM cards c
+INNER JOIN foreign_data fd ON c.uuid = fd.uuid
+WHERE c.watermark = 'azorius'",candidate_sme_metadata,"SELECT DISTINCT fd.language, c.type
+FROM cards c
+INNER JOIN foreign_data fd ON c.uuid = fd.uuid
+WHERE c.watermark = 'azorius'","[""candidate_sme_metadata""]"
+453,card_games,field_or_relationship_meaning,"What's the unconverted mana cost of the card ""Ancestor's Chosen""?","card ""Ancestor's Chosen"" refers to name = 'Ancestor`s Chosen'",other_mismatch,SELECT convertedManaCost FROM cards WHERE name = 'Ancestor''s Chosen',candidate_sme_metadata,SELECT manaCost FROM cards WHERE name = 'Ancestor''s Chosen';,"[""candidate_sme_metadata"", ""candidate_minimal_profile""]"
+469,card_games,output_attributes_and_representation,"Did the set of cards with ""Angel of Mercy"" appear on Magic: The Gathering Online?","card set ""Angel of Mercy"" refers to name = 'Angel of Mercy'; appear on Magic: The Gathering Online refers to mtgoCode is NOT NULL and vice versa",other_mismatch,"SELECT CASE WHEN s.mtgoCode IS NOT NULL THEN 'Yes' ELSE 'No' END AS appeared_on_mtgo
+FROM cards c
+INNER JOIN sets s ON c.setCode = s.code
+WHERE c.name = 'Angel of Mercy'",candidate_sme_metadata,"SELECT CASE WHEN T2.mtgoCode IS NOT NULL THEN 'YES' ELSE 'NO' END AS appeared_on_mtgo
+FROM cards AS T1
+INNER JOIN sets AS T2 ON T1.setCode = T2.code
+WHERE T1.name = 'Angel of Mercy'","[""candidate_sme_metadata""]"
+476,card_games,top_n_ties_and_row_selection,Please list the name of the cards in the set Coldsnap with the highest converted mana cost.,card set Coldsnap refers to name = 'Coldsnap',other_mismatch,"SELECT c.name
+FROM cards c
+INNER JOIN sets s ON c.setCode = s.code
+WHERE s.name = 'Coldsnap'
+  AND c.convertedManaCost = (
+      SELECT MAX(c2.convertedManaCost)
+      FROM cards c2
+      INNER JOIN sets s2 ON c2.setCode = s2.code
+      WHERE s2.name = 'Coldsnap'
+  )",candidate_full_profile,"SELECT T1.name
+FROM cards AS T1
+INNER JOIN sets AS T2
+    ON T1.setCode = T2.code
+WHERE T2.name = 'Coldsnap'
+ORDER BY T1.convertedManaCost DESC
+LIMIT 1","[""candidate_full_profile""]"
+486,card_games,predicates_arithmetic_and_types,What is the percentage of the cards with a converted mana cost of 7 in the set Coldsnap?,"converted mana cost of 7 refers to convertedManaCost = 7; card set Coldsnap refers to name = 'Coldsnap'; percentage = DIVIDE(SUM(convertedManaCost = 7), SUM(convertedManaCost))*100",other_mismatch,"SELECT CAST(SUM(c.convertedManaCost = 7) AS REAL) * 100 / SUM(c.convertedManaCost)
+FROM cards c
+INNER JOIN sets s ON c.setCode = s.code
+WHERE s.name = 'Coldsnap'",candidate_minimal_profile,"SELECT CAST(SUM(CASE WHEN c.convertedManaCost = 7 THEN 1 ELSE 0 END) AS REAL) * 100.0 / COUNT(*) AS percentage
+FROM cards c
+JOIN sets s ON c.setCode = s.code
+WHERE s.name = 'Coldsnap'","[""candidate_minimal_profile""]"
+557,codebase_community,population_and_join_membership,"Among the posts with a score of over 5, what is the percentage of them being owned by an elder user?","score of over 5 refers to Score > 5; elder user refers to Age > 65; percentage = Divide (Count(Id where Age>65), Count(Id)) * 100",other_mismatch,"SELECT CAST(COUNT(CASE WHEN u.Age > 65 THEN 1 END) AS REAL) * 100 / COUNT(p.Id)
+FROM posts p
+LEFT JOIN users u ON p.OwnerUserId = u.Id
+WHERE p.Score > 5",candidate_full_profile,"SELECT CAST(COUNT(CASE WHEN u.Age > 65 THEN 1 END) * 100 AS REAL) / COUNT(p.Id)
+FROM posts p
+INNER JOIN users u ON p.OwnerUserId = u.Id
+WHERE p.Score > 5","[""candidate_full_schema"", ""candidate_full_profile""]"
+580,codebase_community,top_n_ties_and_row_selection,Name 10 users with the badge name 'Necromancer.',"""Necromancer"" is the Name of badge; users refers to DisplayName",other_mismatch,"SELECT DISTINCT u.DisplayName
+FROM users u
+INNER JOIN badges b ON u.Id = b.UserId
+WHERE b.Name = 'Necromancer'
+LIMIT 10",candidate_focused_schema,"SELECT u.DisplayName
+FROM users u
+INNER JOIN badges b ON u.Id = b.UserId
+WHERE b.Name = 'Necromancer'
+LIMIT 10","[""candidate_sme_metadata"", ""candidate_minimal_profile"", ""candidate_focused_schema"", ""candidate_full_profile""]"
+590,codebase_community,top_n_ties_and_row_selection,Which user ID has the lowest view?,lowest views refers to Min(Views),other_mismatch,SELECT Id FROM users WHERE Views IS NOT NULL ORDER BY Views ASC LIMIT 1,candidate_full_schema,SELECT Id FROM users WHERE Views = (SELECT MIN(Views) FROM users),"[""candidate_full_schema"", ""candidate_full_profile""]"
+618,codebase_community,null_and_zero_policy,"List out the age of users who located in Vienna, Austria obtained the badge?","""Vienna, Austria"" is the Location",null_rows_only,"SELECT DISTINCT u.Age FROM users u INNER JOIN badges b ON u.Id = b.UserId WHERE u.Location = 'Vienna, Austria' AND u.Age IS NOT NULL",candidate_sme_metadata,"SELECT DISTINCT u.Age
+FROM users u
+INNER JOIN badges b ON u.Id = b.UserId
+WHERE u.Location = 'Vienna, Austria'","[""candidate_sme_metadata"", ""candidate_minimal_profile"", ""candidate_focused_schema"", ""candidate_full_profile""]"
+630,codebase_community,output_attributes_and_representation,What is the name of tags used by John Salvatier's?,DisplayName = 'John Salvatier';,other_mismatch,"SELECT DISTINCT t.TagName
+FROM users u
+INNER JOIN posts p ON u.Id = p.OwnerUserId
+INNER JOIN tags t ON p.Tags LIKE '%<' || t.TagName || '>%'
+WHERE u.DisplayName = 'John Salvatier'",candidate_sme_metadata,"SELECT DISTINCT p.Tags
+FROM users u
+INNER JOIN posts p ON u.Id = p.OwnerUserId
+WHERE u.DisplayName = 'John Salvatier'","[""candidate_sme_metadata"", ""candidate_minimal_profile""]"
+637,codebase_community,null_and_zero_policy,State all the tags used by Mark Meckes in his posts that doesn't have comments.,used by Mark Meckes refers to DisplayName = 'Mark Meckes'; Doen't have comments refers to CommentCount = 0;,null_rows_only,"SELECT p.Tags
+FROM posts p
+INNER JOIN users u ON p.OwnerUserId = u.Id
+WHERE u.DisplayName = 'Mark Meckes'
+AND p.CommentCount = 0
+AND p.Tags IS NOT NULL",candidate_full_schema,"SELECT p.Tags
+FROM posts p
+INNER JOIN users u ON p.OwnerUserId = u.Id
+WHERE u.DisplayName = 'Mark Meckes'
+AND p.CommentCount = 0","[""candidate_full_schema"", ""candidate_sme_metadata"", ""candidate_full_profile""]"
+648,codebase_community,null_and_zero_policy,Provide the users' display names and available website URLs of the post with favorite count of more than 150.,favorite count of more than 150 refers to FavoriteCount > 150;,null_rows_only,"SELECT DISTINCT u.DisplayName, u.WebsiteUrl FROM posts p INNER JOIN users u ON p.OwnerUserId = u.Id WHERE p.FavoriteCount > 150 AND u.WebsiteUrl IS NOT NULL",candidate_sme_metadata,"SELECT u.DisplayName, u.WebsiteUrl
+FROM posts p
+INNER JOIN users u ON p.OwnerUserId = u.Id
+WHERE p.FavoriteCount > 150","[""candidate_sme_metadata"", ""candidate_focused_schema""]"
+667,codebase_community,field_or_relationship_meaning,What is the title of the post with the oldest post link?,the oldest post link refers to MIN(CreaionDate);,other_mismatch,SELECT T2.Title FROM postLinks AS T1 INNER JOIN posts AS T2 ON T1.PostId = T2.Id ORDER BY T1.CreationDate ASC LIMIT 1,candidate_full_schema,"SELECT p.Title
+FROM posts p
+INNER JOIN postLinks pl ON p.Id = pl.PostId
+ORDER BY p.CreaionDate ASC
+LIMIT 1","[""candidate_full_schema"", ""candidate_sme_metadata"", ""candidate_minimal_profile""]"
+689,codebase_community,population_and_join_membership,"Identify the display name and location of the user, who was the last to edit the post with ID 183.",last to edit refers to MAX(LastEditDate);,other_mismatch,"SELECT DISTINCT u.DisplayName, u.Location FROM users u JOIN posts p ON u.Id = p.LastEditorUserId WHERE p.Id = 183",candidate_full_schema,"SELECT u.DisplayName, u.Location
+FROM users u
+JOIN postHistory ph ON u.Id = ph.UserId
+WHERE ph.PostId = 183
+ORDER BY ph.CreationDate DESC
+LIMIT 1","[""candidate_full_schema"", ""candidate_sme_metadata"", ""candidate_minimal_profile"", ""candidate_full_profile""]"
+794,superhero,top_n_ties_and_row_selection,Which hero was the fastest?,which hero refers to superhero_name; fastest refers to MAX(attribute_value) WHERE attribute_name = 'Speed';,other_mismatch,SELECT T1.superhero_name FROM superhero T1 INNER JOIN hero_attribute T2 ON T1.id = T2.hero_id INNER JOIN attribute T3 ON T2.attribute_id = T3.id WHERE T3.attribute_name = 'Speed' AND T2.attribute_value = (SELECT MAX(T4.attribute_value) FROM hero_attribute T4 INNER JOIN attribute T5 ON T4.attribute_id = T5.id WHERE T5.attribute_name = 'Speed'),candidate_minimal_profile,"SELECT T1.superhero_name
+FROM superhero T1
+INNER JOIN hero_attribute T2 ON T1.id = T2.hero_id
+INNER JOIN attribute T3 ON T2.attribute_id = T3.id
+WHERE T3.attribute_name = 'Speed'
+ORDER BY T2.attribute_value DESC
+LIMIT 1","[""candidate_sme_metadata"", ""candidate_minimal_profile"", ""candidate_focused_schema"", ""candidate_full_profile""]"
+839,superhero,null_and_zero_policy,"In superheroes with weight less than 100, list the full name of the superheroes with brown eyes.",weight less than 100 refers to weight_kg < 100,null_rows_only,SELECT DISTINCT s.full_name FROM superhero s INNER JOIN colour c ON s.eye_colour_id = c.id WHERE s.weight_kg < 100 AND c.colour = 'Brown' AND s.full_name IS NOT NULL,candidate_minimal_profile,"SELECT s.full_name
+FROM superhero s
+INNER JOIN colour c ON s.eye_colour_id = c.id
+WHERE s.weight_kg < 100
+  AND c.colour = 'Brown'","[""candidate_sme_metadata"", ""candidate_minimal_profile"", ""candidate_focused_schema"", ""candidate_full_profile""]"
+842,superhero,null_and_zero_policy,Calculate the average height of all neutral superheroes.,,other_mismatch,"SELECT AVG(T1.height_cm)
+FROM superhero T1
+INNER JOIN alignment T2 ON T1.alignment_id = T2.id
+WHERE T2.alignment = 'Neutral'
+AND T1.height_cm IS NOT NULL
+AND T1.height_cm != 0",candidate_minimal_profile,"SELECT AVG(T1.height_cm)
+FROM superhero T1
+INNER JOIN alignment T2 ON T1.alignment_id = T2.id
+WHERE T2.alignment = 'Neutral'","[""candidate_full_schema"", ""candidate_sme_metadata"", ""candidate_minimal_profile""]"
+851,formula_1,field_or_relationship_meaning,Please list the positions of the circuits built by the constructor Renault.,Renault is a name of constructor;,other_mismatch,SELECT DISTINCT T1.position FROM results AS T1 INNER JOIN constructors AS T2 ON T1.constructorId = T2.constructorId WHERE T2.name = 'Renault' AND T1.position IS NOT NULL,candidate_sme_metadata,"SELECT T2.position
+FROM constructors AS T1
+INNER JOIN constructorStandings AS T2 ON T1.constructorId = T2.constructorId
+WHERE T1.name = 'Renault'","[""candidate_full_schema"", ""candidate_sme_metadata"", ""candidate_minimal_profile""]"
+852,formula_1,predicates_arithmetic_and_types,How many races in the year 2010 are held on grand prixs outside Asia and Europe?,,other_mismatch,"SELECT COUNT(T1.raceId)
+FROM races AS T1
+INNER JOIN circuits AS T2
+    ON T1.circuitId = T2.circuitId
+WHERE T1.year = 2010
+  AND T2.country NOT IN (
+      'Bahrain', 'Malaysia', 'China', 'Japan', 'South Korea', 'Singapore', 'UAE',
+      'Spain', 'Monaco', 'Turkey', 'UK', 'Germany', 'Hungary', 'Belgium', 'Italy'
+  )",candidate_minimal_profile,"SELECT COUNT(*) 
+FROM races r
+INNER JOIN circuits c ON r.circuitId = c.circuitId
+WHERE r.year = 2010
+AND c.country NOT IN (
+    'Bahrain', 'Malaysia', 'China', 'Singapore', 'Japan', 'South Korea', 'Korea', 'UAE', 'India', 'Azerbaijan',
+    'Spain', 'Monaco', 'Turkey', 'UK', 'Great Britain', 'Germany', 'Hungary', 'Belgium', 'Italy',
+    'France', 'Portugal', 'Austria', 'Netherlands', 'Russia', 'Sweden', 'Finland',
+    'Denmark', 'Norway', 'Poland', 'Czech Republic', 'Slovakia', 'Romania',
+    'Bulgaria', 'Greece', 'Ireland', 'Switzerland'
+)","[""candidate_sme_metadata"", ""candidate_minimal_profile""]"
+856,formula_1,null_and_zero_policy,Please list the time of the races held on Sepang International Circuit.,,null_rows_only,SELECT DISTINCT r.time FROM races r INNER JOIN circuits c ON r.circuitId = c.circuitId WHERE c.name = 'Sepang International Circuit' AND r.time IS NOT NULL,candidate_sme_metadata,"SELECT r.time
+FROM races r
+INNER JOIN circuits c ON r.circuitId = c.circuitId
+WHERE c.name = 'Sepang International Circuit'","[""candidate_sme_metadata"", ""candidate_minimal_profile"", ""candidate_focused_schema"", ""candidate_full_profile""]"
+866,formula_1,output_attributes_and_representation,Who was the player that got the lap time of 0:01:27 in the race No. 161? Show his introduction website.,player and driver are synonyms; the lap time of 0:0M:SS refers to lapTime.time LIKE 'M:SS%';race number refers to raceId; introduction website of the drivers refers to url;,missing_columns,"SELECT DISTINCT d.surname, d.url FROM lapTimes lt INNER JOIN drivers d ON lt.driverId = d.driverId WHERE lt.raceId = 161 AND lt.time LIKE '1:27%'",candidate_minimal_profile,"SELECT d.forename, d.surname, d.url
+FROM lapTimes lt
+INNER JOIN drivers d ON lt.driverId = d.driverId
+WHERE lt.raceId = 161 AND lt.time LIKE '1:27%'","[""candidate_minimal_profile"", ""candidate_focused_schema"", ""candidate_full_profile""]"
+873,formula_1,output_attributes_and_representation,What is the actual finish time for Bruce McLaren in the race No.743?,race number refers to raceId;,other_mismatch,SELECT r.milliseconds FROM results r INNER JOIN drivers d ON r.driverId = d.driverId WHERE d.forename = 'Bruce' AND d.surname = 'McLaren' AND r.raceId = 743,candidate_full_schema,"SELECT r.time
+FROM results r
+INNER JOIN drivers d ON r.driverId = d.driverId
+WHERE d.forename = 'Bruce'
+  AND d.surname = 'McLaren'
+  AND r.raceId = 743","[""candidate_full_schema"", ""candidate_sme_metadata""]"
+879,formula_1,predicates_arithmetic_and_types,"For the driver who set the fastest lap speed, what is his nationality?",the fastest lap speed refers to (MAX) fastestLapSpeed;,other_mismatch,SELECT d.nationality FROM drivers d INNER JOIN results r ON d.driverId = r.driverId WHERE r.fastestLapSpeed IS NOT NULL ORDER BY CAST(r.fastestLapSpeed AS REAL) DESC LIMIT 1,candidate_sme_metadata,"SELECT d.nationality
+FROM results r
+INNER JOIN drivers d ON r.driverId = d.driverId
+WHERE r.fastestLapSpeed = (SELECT MAX(fastestLapSpeed) FROM results)","[""candidate_sme_metadata"", ""candidate_minimal_profile""]"
+887,formula_1,field_or_relationship_meaning,Name the races in year 2017 that are not hosted in year 2000.,not hosted means not in;,other_mismatch,"SELECT name
+FROM races
+WHERE year = 2017
+AND circuitId NOT IN (
+    SELECT circuitId
+    FROM races
+    WHERE year = 2000
+)",candidate_focused_schema,SELECT name FROM races WHERE year = 2017 AND name NOT IN (SELECT name FROM races WHERE year = 2000),"[""candidate_focused_schema"", ""candidate_full_profile""]"
+891,formula_1,field_or_relationship_meaning,Name all drivers in the 2010 Singapore Grand Prix order by their position stands.,,other_mismatch,"SELECT d.forename, d.surname
+FROM drivers d
+INNER JOIN results r ON d.driverId = r.driverId
+INNER JOIN races rc ON r.raceId = rc.raceId
+WHERE rc.year = 2010
+  AND rc.name = 'Singapore Grand Prix'
+ORDER BY r.positionOrder",candidate_full_profile,"SELECT d.forename, d.surname
+FROM drivers d
+INNER JOIN driverStandings ds ON d.driverId = ds.driverId
+INNER JOIN races r ON ds.raceId = r.raceId
+WHERE r.year = 2010 AND r.name = 'Singapore Grand Prix'
+ORDER BY ds.position","[""candidate_focused_schema"", ""candidate_full_profile""]"
+898,formula_1,output_attributes_and_representation,How old is the youngest Japanese driver? What is his name?,"date of birth refers to drivers.dob; The larger the birthday value, the younger the person is, and vice versa; Japanese refers to nationality = 'Japanese'; age = YEAR(CURRENT_TIMESTAMP) - YEAR(dob);",column_order,"SELECT forename, surname, strftime('%Y', CURRENT_TIMESTAMP) - strftime('%Y', dob) AS age
+FROM drivers
+WHERE nationality = 'Japanese'
+ORDER BY dob DESC
+LIMIT 1",candidate_sme_metadata,"SELECT STRFTIME('%Y', CURRENT_TIMESTAMP) - STRFTIME('%Y', dob) AS age, forename, surname
+FROM drivers
+WHERE nationality = 'Japanese'
+ORDER BY dob DESC
+LIMIT 1","[""candidate_sme_metadata""]"
+907,formula_1,output_attributes_and_representation,List all races in 2017 and the hosting country order by date of the event.,,extra_columns,"SELECT r.name, c.country, r.date
+FROM races r
+INNER JOIN circuits c ON r.circuitId = c.circuitId
+WHERE r.year = 2017
+ORDER BY r.date",candidate_minimal_profile,"SELECT races.name, circuits.country
+FROM races
+INNER JOIN circuits ON races.circuitId = circuits.circuitId
+WHERE races.year = 2017
+ORDER BY races.date","[""candidate_minimal_profile"", ""candidate_full_profile""]"
+936,formula_1,output_attributes_and_representation,Which was the fastest lap for Lewis Hamilton in the 2008 Australian Grand Prix?,,other_mismatch,"SELECT lt.time
+FROM lapTimes lt
+INNER JOIN drivers d ON lt.driverId = d.driverId
+INNER JOIN races r ON lt.raceId = r.raceId
+WHERE d.forename = 'Lewis'
+  AND d.surname = 'Hamilton'
+  AND r.year = 2008
+  AND r.name = 'Australian Grand Prix'
+  AND lt.milliseconds IS NOT NULL
+ORDER BY lt.milliseconds ASC
+LIMIT 1",candidate_focused_schema,"SELECT lt.lap
+FROM lapTimes lt
+JOIN races r ON lt.raceId = r.raceId
+JOIN drivers d ON lt.driverId = d.driverId
+WHERE d.forename = 'Lewis' AND d.surname = 'Hamilton'
+  AND r.year = 2008
+  AND r.name = 'Australian Grand Prix'
+ORDER BY lt.milliseconds ASC
+LIMIT 1","[""candidate_focused_schema""]"
+943,formula_1,predicates_arithmetic_and_types,What is the rate of drivers completing all the laps in the 2008 Australian Grand Prix?,"completing all the laps refers to time is not null; rate = divide(COUNT(raceID where time is not null), COUNT(raceID))",other_mismatch,"SELECT CAST(COUNT(CASE WHEN T1.time IS NOT NULL THEN T1.raceId END) AS REAL) / COUNT(T1.raceId)
+FROM results T1
+INNER JOIN races T2
+    ON T1.raceId = T2.raceId
+WHERE T2.year = 2008
+  AND T2.name = 'Australian Grand Prix'",candidate_focused_schema,"SELECT CAST(COUNT(CASE WHEN r.time IS NOT NULL THEN r.raceId END) AS REAL) * 100 / COUNT(r.raceId)
+FROM results r
+INNER JOIN races rc ON r.raceId = rc.raceId
+WHERE rc.year = 2008 AND rc.name = 'Australian Grand Prix'","[""candidate_focused_schema""]"
+952,formula_1,field_or_relationship_meaning,Which constructors have been ranked 1?,,other_mismatch,SELECT DISTINCT c.name FROM constructors c INNER JOIN constructorStandings cs ON c.constructorId = cs.constructorId WHERE cs.position = 1,candidate_full_profile,"SELECT DISTINCT T2.name
+FROM results AS T1
+INNER JOIN constructors AS T2 ON T1.constructorId = T2.constructorId
+WHERE T1.rank = 1","[""candidate_focused_schema"", ""candidate_full_profile""]"
+967,formula_1,output_attributes_and_representation,State code numbers of top 3 yougest drivers. How many Netherlandic drivers among them?,youngest driver refers to Max (year(dob)); Netherlandic and Dutch refer to the same country,extra_columns,"SELECT
+    code,
+    SUM(CASE WHEN nationality = 'Dutch' THEN 1 ELSE 0 END) OVER () AS netherlandic_count
+FROM (
+    SELECT code, nationality
+    FROM drivers
+    WHERE dob IS NOT NULL
+    ORDER BY dob DESC
+    LIMIT 3
+) AS top3_youngest",candidate_minimal_profile,"SELECT COUNT(*) AS netherlandic_count
+FROM (
+    SELECT nationality
+    FROM drivers
+    WHERE dob IS NOT NULL
+    ORDER BY strftime('%Y', dob) DESC
+    LIMIT 3
+)
+WHERE nationality = 'Dutch'","[""candidate_sme_metadata"", ""candidate_minimal_profile"", ""candidate_focused_schema"", ""candidate_full_profile""]"
+978,formula_1,output_attributes_and_representation,How many times the circuits were held in Austria? Please give their location and coordinates.,"location coordinates refers to (lat,lng); Austria refers to country = 'Austria';",extra_columns,"SELECT
+    c.location,
+    c.lat,
+    c.lng,
+    COUNT(r.raceId) AS times_held
+FROM circuits c
+INNER JOIN races r ON c.circuitId = r.circuitId
+WHERE c.country = 'Austria'
+GROUP BY c.location, c.lat, c.lng",candidate_full_profile,"SELECT location, lat, lng
+FROM circuits
+WHERE country = 'Austria'","[""candidate_full_profile""]"
+987,formula_1,predicates_arithmetic_and_types,What is the average fastest lap time of the top 10 drivers in the 2006 United States Grand Prix?,top 10 refers to rank <11; AVG(fastestLapTime);,other_mismatch,"SELECT AVG(
+    CAST(SUBSTR(fastestLapTime, 1, INSTR(fastestLapTime, ':') - 1) AS REAL) * 60
+    + CAST(SUBSTR(fastestLapTime, INSTR(fastestLapTime, ':') + 1) AS REAL)
+)
+FROM results
+INNER JOIN races ON results.raceId = races.raceId
+WHERE races.year = 2006
+  AND races.name = 'United States Grand Prix'
+  AND results.rank < 11
+  AND results.fastestLapTime IS NOT NULL",candidate_minimal_profile,"SELECT AVG(results.fastestLapTime)
+FROM results
+INNER JOIN races ON results.raceId = races.raceId
+WHERE races.year = 2006
+  AND races.name = 'United States Grand Prix'
+  AND results.rank < 11","[""candidate_sme_metadata"", ""candidate_minimal_profile"", ""candidate_focused_schema"", ""candidate_full_profile""]"
+998,formula_1,aggregation_grain,"In terms of number of points acquired, how many victories did the driver who ranked 91st acquired?","victories refer to wins; 91st refers to points
+
+",other_mismatch,"SELECT wins
+FROM driverStandings
+ORDER BY points DESC
+LIMIT 1 OFFSET 90",candidate_minimal_profile,"SELECT SUM(wins) AS total_victories
+FROM driverStandings
+GROUP BY driverId
+ORDER BY SUM(points) DESC
+LIMIT 1 OFFSET 90","[""candidate_minimal_profile""]"
+1032,european_football_2,top_n_ties_and_row_selection,Give the name of the league with the highest matches of all time and how many matches were played in the said league., league with highest matches of all time refers to MAX(COUNT(league_id));,other_mismatch,"SELECT L.name, COUNT(M.league_id) AS match_count
+FROM Match M
+INNER JOIN League L ON M.league_id = L.id
+GROUP BY M.league_id
+ORDER BY match_count DESC
+LIMIT 1",candidate_minimal_profile,"SELECT L.name, COUNT(M.id) AS match_count
+FROM Match M
+JOIN League L ON M.league_id = L.id
+GROUP BY L.id, L.name
+ORDER BY match_count DESC
+LIMIT 1;","[""candidate_minimal_profile""]"
+1037,european_football_2,field_or_relationship_meaning,"Calculate the percentage of players who prefer left foot, who were born between 1987 and 1992.","players who prefer left foot refers to preferred_foot = 'left'; percentage of players who prefer left foot = DIVIDE(MULTIPLY((SUM(preferred_foot = 'left'), 100)), COUNT(player_fifa_api_id)); born between 1987 and 1992 refers to YEAR(birthday) BETWEEN '1987' AND '1992';",other_mismatch,"SELECT CAST(SUM(pa.preferred_foot = 'left') * 100 AS REAL) / COUNT(pa.player_fifa_api_id)
+FROM Player_Attributes AS pa
+INNER JOIN Player AS p ON pa.player_fifa_api_id = p.player_fifa_api_id
+WHERE STRFTIME('%Y', p.birthday) BETWEEN '1987' AND '1992'",candidate_sme_metadata,"SELECT CAST(SUM(pa.preferred_foot = 'left') * 100 AS REAL) / COUNT(pa.player_fifa_api_id)
+FROM Player_Attributes pa
+INNER JOIN Player p ON pa.player_api_id = p.player_api_id
+WHERE STRFTIME('%Y', p.birthday) BETWEEN '1987' AND '1992'","[""candidate_full_schema"", ""candidate_sme_metadata""]"
+1093,european_football_2,predicates_arithmetic_and_types,What is the average overall rating of the players born before the year 1986?,"average overall rating = DIVIDE(SUM(overall_rating), COUNT(id)); born before the year 1986 refers to strftime('%Y', birthday) < '1986';",other_mismatch,"SELECT CAST(SUM(pa.overall_rating) AS REAL) / COUNT(pa.id)
+FROM Player p
+INNER JOIN Player_Attributes pa ON p.player_api_id = pa.player_api_id
+WHERE strftime('%Y', p.birthday) < '1986'",candidate_sme_metadata,"SELECT SUM(pa.overall_rating) / COUNT(pa.id)
+FROM Player_Attributes pa
+INNER JOIN Player p ON pa.player_api_id = p.player_api_id
+WHERE strftime('%Y', p.birthday) < '1986'","[""candidate_sme_metadata""]"
+1108,european_football_2,predicates_arithmetic_and_types,"What was the build up play speed class for ""Willem II"" on 2011/2/22?","""Willem II"" refers to team_long_name = 'Willem II'; on 2011/2/22 refers to date = '2012-02-22'",other_mismatch,SELECT ta.buildUpPlaySpeedClass FROM Team_Attributes ta INNER JOIN Team t ON ta.team_api_id = t.team_api_id WHERE t.team_long_name = 'Willem II' AND ta.date = '2012-02-22 00:00:00',candidate_focused_schema,"SELECT T1.buildUpPlaySpeedClass
+FROM Team_Attributes T1
+INNER JOIN Team T2 ON T1.team_api_id = T2.team_api_id
+WHERE T2.team_long_name = 'Willem II'
+AND T1.date = '2011-02-22 00:00:00'","[""candidate_full_schema"", ""candidate_minimal_profile"", ""candidate_focused_schema"", ""candidate_full_profile""]"
+1149,thrombosis_prediction,output_attributes_and_representation,Are there more in-patient or outpatient who were male? What is the deviation in percentage?,"male refers to SEX = 'M'; in-patient refers to Admission = '+'; outpatient refers to Admission = '-'; percentage = DIVIDE(COUNT(ID) where SEX = 'M' and Admission = '+', COUNT(ID) where SEX  = 'M' and Admission = '-')",extra_columns,"SELECT
+    CASE
+        WHEN COUNT(CASE WHEN SEX = 'M' AND Admission = '+' THEN ID END) >
+             COUNT(CASE WHEN SEX = 'M' AND Admission = '-' THEN ID END)
+        THEN 'in-patient'
+        ELSE 'outpatient'
+    END AS more_common,
+    CAST(COUNT(CASE WHEN SEX = 'M' AND Admission = '+' THEN ID END) AS REAL) * 100
+        / COUNT(CASE WHEN SEX = 'M' AND Admission = '-' THEN ID END) AS deviation_percentage
+FROM Patient",candidate_full_profile,"SELECT
+    CAST(COUNT(CASE WHEN Admission = '+' THEN ID END) AS REAL) * 100
+    / COUNT(CASE WHEN Admission = '-' THEN ID END)
+FROM Patient
+WHERE SEX = 'M'","[""candidate_full_schema"", ""candidate_full_profile""]"
+1175,thrombosis_prediction,field_or_relationship_meaning,"How old was the patient who had the highest hemoglobin count at the time of the examination, and what is the doctor's diagnosis?","How old the patient refers to SUBTRACT(year(`Examination Date`), year(Birthday)); the highest hemoglobin count refers to MAX(HGB)",other_mismatch,"SELECT STRFTIME('%Y', e.[Examination Date]) - STRFTIME('%Y', p.Birthday) AS Age, e.Diagnosis FROM Laboratory l INNER JOIN Patient p ON l.ID = p.ID INNER JOIN Examination e ON l.ID = e.ID WHERE l.HGB = (SELECT MAX(HGB) FROM Laboratory)",candidate_full_schema,"SELECT
+    STRFTIME('%Y', L.Date) - STRFTIME('%Y', P.Birthday) AS Age,
+    P.Diagnosis
+FROM Laboratory L
+JOIN Patient P ON L.ID = P.ID
+WHERE L.HGB = (SELECT MAX(HGB) FROM Laboratory)
+LIMIT 1","[""candidate_full_schema""]"
+1177,thrombosis_prediction,output_attributes_and_representation,Was the total cholesterol status for the patient id 2927464 on 1995-9-4 at the normal level?,total cholesterol normal level refers to N < 250,other_mismatch,"SELECT
+  CASE WHEN [T-CHO] < 250 THEN 'Yes' ELSE 'No' END AS IsNormalLevel
+FROM Laboratory
+WHERE ID = 2927464
+  AND Date = '1995-09-04'",candidate_minimal_profile,"SELECT
+    CASE WHEN [T-CHO] < 250 THEN 'Normal' ELSE 'Abnormal' END AS cholesterol_status
+FROM Laboratory
+WHERE ID = 2927464
+  AND Date = '1995-09-04'","[""candidate_minimal_profile""]"
+1178,thrombosis_prediction,null_and_zero_policy,What was the gender of the first AORTITIS diagnosed patient?,gender means SEX; 'AORTITIS' refers to Diagnosis;,other_mismatch,"SELECT SEX
+FROM Patient
+WHERE Diagnosis = 'AORTITIS'
+ORDER BY [First Date] ASC
+LIMIT 1",candidate_sme_metadata,"SELECT SEX
+FROM Patient
+WHERE Diagnosis = 'AORTITIS'
+  AND [First Date] IS NOT NULL
+ORDER BY [First Date] ASC
+LIMIT 1","[""candidate_sme_metadata"", ""candidate_minimal_profile""]"
+1195,thrombosis_prediction,field_or_relationship_meaning,What is the average blood albumin level for female patients with a PLT greater than 400 who have been diagnosed with SLE?,average blood albumin level refers to AVG(ALB); female refers to SEX = 'F'; PLT greater than 400 refers to PLT > 400; diagnosed with SLE refers to Diagnosis= 'SLE',other_mismatch,"SELECT AVG(T3.ALB)
+FROM Patient T1
+INNER JOIN Examination T2 ON T1.ID = T2.ID
+INNER JOIN Laboratory T3 ON T1.ID = T3.ID
+WHERE T1.SEX = 'F'
+  AND T3.PLT > 400
+  AND T2.Diagnosis = 'SLE'",candidate_sme_metadata,"SELECT AVG(T2.ALB)
+FROM Patient AS T1
+INNER JOIN Laboratory AS T2 ON T1.ID = T2.ID
+WHERE T1.SEX = 'F'
+  AND T2.PLT > 400
+  AND T1.Diagnosis = 'SLE'","[""candidate_full_schema"", ""candidate_sme_metadata"", ""candidate_minimal_profile""]"
+1212,thrombosis_prediction,output_attributes_and_representation,"For patients with alkaliphophatase (ALP) within normal range, were they treated as inpatient or outpatient?",alkaliphophatase (ALP) within normal range refers to ALP < 300; inpatient refers to admission = '+'; outpatient refers to admission = '-',other_mismatch,"SELECT DISTINCT T1.ID,
+    CASE T2.Admission
+        WHEN '+' THEN 'inpatient'
+        WHEN '-' THEN 'outpatient'
+    END AS treatment_type
+FROM Laboratory T1
+INNER JOIN Patient T2 ON T1.ID = T2.ID
+WHERE T1.ALP < 300
+  AND T2.Admission IN ('+', '-')",candidate_focused_schema,"SELECT DISTINCT T1.Admission
+FROM Patient T1
+INNER JOIN Laboratory T2 ON T1.ID = T2.ID
+WHERE T2.ALP < 300","[""candidate_focused_schema""]"
+1218,thrombosis_prediction,aggregation_grain,What is the percentage of the female patient whose uric acid (UA) beyond the normal range?,uric acid (UA) beyond the normal range refers to UA > 8.0 and SEX = 'M' or UA > 6.5 and SEX = 'F'; female refers to Sex = 'F',other_mismatch,"SELECT CAST(COUNT(DISTINCT CASE WHEN T2.UA > 6.5 THEN T1.ID END) AS REAL) * 100 / COUNT(DISTINCT T1.ID)
+FROM Patient T1
+INNER JOIN Laboratory T2 ON T1.ID = T2.ID
+WHERE T1.SEX = 'F'",candidate_full_schema,"SELECT CAST(COUNT(CASE WHEN T1.UA > 6.5 THEN 1 END) * 100 AS REAL) / COUNT(*) AS percentage
+FROM Laboratory T1
+INNER JOIN Patient T2 ON T1.ID = T2.ID
+WHERE T2.SEX = 'F'","[""candidate_full_schema""]"
+1238,thrombosis_prediction,field_or_relationship_meaning,"Among the patients who were diagnosed with SLE, who is the oldest with normal hemoglobin level. Provide the ID and sex.","diagnosed with SLE refers to Diagnosis = 'SLE'; The larger the birthday value, the younger the person is, and vice versa; normal hemoglobin level refers to 10 < HGB < 17;",other_mismatch,"SELECT DISTINCT P.ID, P.SEX
+FROM Patient P
+INNER JOIN Examination E ON P.ID = E.ID
+INNER JOIN Laboratory L ON P.ID = L.ID
+WHERE E.Diagnosis = 'SLE'
+  AND L.HGB > 10 AND L.HGB < 17
+ORDER BY P.Birthday ASC
+LIMIT 1",candidate_sme_metadata,"SELECT P.ID, P.SEX
+FROM Patient P
+INNER JOIN Laboratory L ON P.ID = L.ID
+WHERE P.Diagnosis = 'SLE'
+  AND L.HGB > 10 AND L.HGB < 17
+  AND P.Birthday IS NOT NULL
+ORDER BY P.Birthday ASC
+LIMIT 1","[""candidate_full_schema"", ""candidate_sme_metadata"", ""candidate_minimal_profile""]"
+1249,thrombosis_prediction,predicates_arithmetic_and_types,Please list the disease names of the patients that have a proteinuria level higher than normal.,disease names refers to Diagnosis; proteinuria level higher than normal refers to `U-PRO` > = 30;,other_mismatch,"SELECT DISTINCT T1.Diagnosis FROM Patient AS T1 INNER JOIN Laboratory AS T2 ON T1.ID = T2.ID WHERE CAST(T2.[U-PRO] AS INTEGER) >= 30 OR T2.[U-PRO] IN ('>=300', '>=1000', '+1(30)', '+2(100)')",candidate_full_profile,"SELECT DISTINCT T1.Diagnosis
+FROM Patient AS T1
+INNER JOIN Laboratory AS T2 ON T1.ID = T2.ID
+WHERE T2.[U-PRO] >= 30","[""candidate_sme_metadata"", ""candidate_full_profile""]"
+1260,thrombosis_prediction,predicates_arithmetic_and_types,Please list the ID of the patient whose RF is normal and who is older than 60.,"RF is normal refers to RF < 20; older than 60 = SUBTRACT((YEAR(CURDATE()), YEAR(Birthday))) > 60;",other_mismatch,"SELECT DISTINCT T1.ID
+FROM Patient T1
+INNER JOIN Laboratory T2 ON T1.ID = T2.ID
+WHERE CAST(T2.RF AS REAL) < 20
+  AND (strftime('%Y', 'now') - strftime('%Y', T1.Birthday)) > 60",candidate_sme_metadata,"SELECT DISTINCT T1.ID
+FROM Patient T1
+INNER JOIN Laboratory T2 ON T1.ID = T2.ID
+WHERE T2.RF < 20
+  AND (strftime('%Y', 'now') - strftime('%Y', T1.Birthday)) > 60","[""candidate_sme_metadata""]"
+1261,thrombosis_prediction,predicates_arithmetic_and_types,How many patients with a normal RF don't have thrombosis?,normal RF refers to RF < 20; don't have thrombosis refers to Thrombosis = '0';,other_mismatch,"SELECT COUNT(DISTINCT T1.ID)
+FROM Laboratory T1
+INNER JOIN Examination T2 ON T1.ID = T2.ID
+WHERE CAST(T1.RF AS REAL) < 20
+  AND T2.Thrombosis = '0'",candidate_sme_metadata,"SELECT COUNT(DISTINCT T1.ID)
+FROM Patient T1
+INNER JOIN Laboratory T2 ON T1.ID = T2.ID
+INNER JOIN Examination T3 ON T1.ID = T3.ID
+WHERE T2.RF < 20 AND T3.Thrombosis = '0'","[""candidate_sme_metadata""]"
+1282,thrombosis_prediction,aggregation_grain,Please list the top three patients' birthdays with the highest glutamic pylvic transaminase in the normal range.,highest glutamic pylvic transaminase in the normal range refers to MAX(GPT < 60);,other_mismatch,"SELECT P.Birthday FROM Patient P INNER JOIN Laboratory L ON P.ID = L.ID WHERE L.GPT < 60 GROUP BY P.ID, P.Birthday ORDER BY MAX(L.GPT) DESC LIMIT 3",candidate_minimal_profile,"SELECT P.Birthday
+FROM Patient P
+INNER JOIN Laboratory L ON P.ID = L.ID
+WHERE L.GPT < 60
+ORDER BY L.GPT DESC
+LIMIT 3","[""candidate_sme_metadata"", ""candidate_minimal_profile"", ""candidate_focused_schema"", ""candidate_full_profile""]"
+1406,student_club,output_attributes_and_representation,"Among the budgets for Food, which one has the highest budgeted amount?",MAX(amount) where category = 'Food',other_mismatch,SELECT MAX(amount) FROM budget WHERE category = 'Food',candidate_sme_metadata,SELECT budget_id FROM budget WHERE category = 'Food' ORDER BY amount DESC LIMIT 1,"[""candidate_sme_metadata""]"
+1418,student_club,field_or_relationship_meaning,Mention the category of events which were held at MU 215.,held at MU 215 refers to location = 'MU 215',other_mismatch,SELECT DISTINCT type FROM event WHERE location = 'MU 215',candidate_full_schema,"SELECT DISTINCT b.category
+FROM event e
+INNER JOIN budget b ON e.event_id = b.link_to_event
+WHERE e.location = 'MU 215'","[""candidate_full_schema""]"
+1419,student_club,field_or_relationship_meaning,What is the category of event which was taken place in 2020-03-24T12:00:00?,taken place in 2020-03-24T12:00:00 refers to event_date = '2020-03-24T12:00:00',other_mismatch,SELECT type FROM event WHERE event_date = '2020-03-24T12:00:00',candidate_full_schema,"SELECT b.category
+FROM budget b
+JOIN event e ON b.link_to_event = e.event_id
+WHERE e.event_date = '2020-03-24T12:00:00'","[""candidate_full_schema"", ""candidate_sme_metadata""]"
+1422,student_club,field_or_relationship_meaning,State the category of events were held at MU 215.,'MU 215' is the location of event; ,other_mismatch,SELECT DISTINCT type FROM event WHERE location = 'MU 215',candidate_full_schema,"SELECT DISTINCT b.category
+FROM budget b
+JOIN event e ON b.link_to_event = e.event_id
+WHERE e.location = 'MU 215'","[""candidate_full_schema"", ""candidate_sme_metadata""]"
+1450,student_club,population_and_join_membership,"In the events with more than forty incomes, list the city and country in which the event is happening.",more than fifty incomes refers to income > 40,other_mismatch,"SELECT DISTINCT z.city, z.county
+FROM income i
+INNER JOIN member m ON i.link_to_member = m.member_id
+INNER JOIN attendance a ON m.member_id = a.link_to_member
+INNER JOIN event e ON a.link_to_event = e.event_id
+INNER JOIN zip_code z ON m.zip = z.zip_code
+WHERE i.amount > 40",candidate_full_schema,"SELECT DISTINCT z.city, z.county
+FROM income i
+JOIN member m ON i.link_to_member = m.member_id
+JOIN zip_code z ON m.zip = z.zip_code
+WHERE i.amount > 40","[""candidate_full_schema""]"
+1458,student_club,aggregation_grain,Calculate the difference in the percentage of members in New Jersey and Vermont.,"SUBTRACT( DIVIDE( SUM(state = 'New Jersey'), COUNT(position = 'Member')), DIVIDE( SUM(state = 'Vermont'), COUNT(position = 'Member')) )",other_mismatch,"SELECT
+    (SUM(CASE WHEN T2.state = 'New Jersey' THEN 1 ELSE 0 END) * 100.0 / COUNT(CASE WHEN T1.position = 'Member' THEN 1 END))
+    - (SUM(CASE WHEN T2.state = 'Vermont' THEN 1 ELSE 0 END) * 100.0 / COUNT(CASE WHEN T1.position = 'Member' THEN 1 END))
+FROM member T1
+INNER JOIN zip_code T2 ON T1.zip = T2.zip_code",candidate_sme_metadata,"SELECT (SUM(T2.state = 'New Jersey') * 100.0 / COUNT(T1.position = 'Member')) - (SUM(T2.state = 'Vermont') * 100.0 / COUNT(T1.position = 'Member'))
+FROM member AS T1
+INNER JOIN zip_code AS T2 ON T1.zip = T2.zip_code","[""candidate_sme_metadata""]"
+1510,debit_card_specializing,field_or_relationship_meaning,What is the average total price of the transactions taken place in gas stations in the Czech Republic?,Gas station in the Czech Republic implies that Country = 'CZE',other_mismatch,"SELECT AVG(T1.Amount * T1.Price)
+FROM transactions_1k AS T1
+INNER JOIN gasstations AS T2 ON T1.GasStationID = T2.GasStationID
+WHERE T2.Country = 'CZE'",candidate_full_schema,"SELECT AVG(t.Price)
+FROM transactions_1k t
+INNER JOIN gasstations g ON t.GasStationID = g.GasStationID
+WHERE g.Country = 'CZE'","[""candidate_full_schema"", ""candidate_sme_metadata""]"
+1511,debit_card_specializing,field_or_relationship_meaning,"For the customers who paid in the euro, what is their average total price of the transactions?",,other_mismatch,"SELECT AVG(t.Amount * t.Price)
+FROM customers c
+INNER JOIN transactions_1k t ON c.CustomerID = t.CustomerID
+WHERE c.Currency = 'EUR'",candidate_sme_metadata,"SELECT AVG(t.Price)
+FROM transactions_1k t
+INNER JOIN customers c ON t.CustomerID = c.CustomerID
+WHERE c.Currency = 'EUR'","[""candidate_sme_metadata""]"
+1524,debit_card_specializing,field_or_relationship_meaning,What's the nationality of the customer who spent 548.4 in 2012/8/24?,'2012/8/24' can be represented by '2012-08-24',other_mismatch,"SELECT T2.Currency
+FROM transactions_1k AS T1
+INner JOIN customers AS T2 ON T1.CustomerID = T2.CustomerID
+WHERE T1.Date = '2012-08-24' AND T1.Price = 548.4",candidate_focused_schema,"SELECT g.Country
+FROM transactions_1k t
+JOIN customers c ON t.CustomerID = c.CustomerID
+JOIN gasstations g ON t.GasStationID = g.GasStationID
+WHERE t.Price = 548.4 AND t.Date = '2012-08-24'","[""candidate_focused_schema""]"
+1525,debit_card_specializing,aggregation_grain,What is the percentage of the customers who used EUR in 2012/8/25?,'2012/8/25' can be represented by '2012-08-25',other_mismatch,"SELECT CAST(COUNT(DISTINCT CASE WHEN c.Currency = 'EUR' THEN t.CustomerID END) * 100 AS REAL) / COUNT(DISTINCT t.CustomerID)
+FROM transactions_1k t
+INNER JOIN customers c ON t.CustomerID = c.CustomerID
+WHERE t.Date = '2012-08-25'",candidate_full_profile,"SELECT CAST(COUNT(CASE WHEN c.Currency = 'EUR' THEN 1 END) AS REAL) * 100 / COUNT(*)
+FROM transactions_1k t
+INNER JOIN customers c ON t.CustomerID = c.CustomerID
+WHERE t.Date = '2012-08-25'","[""candidate_minimal_profile"", ""candidate_focused_schema"", ""candidate_full_profile""]"
+1527,debit_card_specializing,field_or_relationship_meaning,Which gas station has the highest amount of revenue?,,other_mismatch,SELECT GasStationID FROM transactions_1k GROUP BY GasStationID ORDER BY SUM(Amount * Price) DESC LIMIT 1,candidate_full_schema,"SELECT GasStationID
+FROM transactions_1k
+GROUP BY GasStationID
+ORDER BY SUM(Price) DESC
+LIMIT 1","[""candidate_full_schema"", ""candidate_sme_metadata""]"

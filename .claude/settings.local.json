@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python plot_vldb_multipanel.py)",
+      "Bash(python plot_schema_pruning.py)"
+    ]
+  }
+}

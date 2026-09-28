@@ -1,0 +1,440 @@
+{
+  "n": 1533,
+  "pure_extra_columns": {
+    "questions": 27,
+    "columns": 32,
+    "roles": {
+      "plain": 11,
+      "name_like": 9,
+      "id_like": 7,
+      "filter": 3,
+      "join_key": 3,
+      "order_key": 3
+    },
+    "mentioned_in_question_pct": 34.4,
+    "mentioned_in_evidence_pct": 18.8,
+    "examples": [
+      [
+        87,
+        "admemail3",
+        "filter",
+        false
+      ],
+      [
+        125,
+        "a2",
+        "plain",
+        false
+      ],
+      [
+        159,
+        "*",
+        "plain",
+        false
+      ],
+      [
+        165,
+        "*",
+        "plain",
+        false
+      ],
+      [
+        211,
+        "atom_id2",
+        "plain",
+        false
+      ],
+      [
+        223,
+        "atom_id2",
+        "plain",
+        false
+      ],
+      [
+        231,
+        "label",
+        "plain",
+        true
+      ],
+      [
+        283,
+        "molecule_id",
+        "join_key|id_like",
+        false
+      ],
+      [
+        445,
+        "type",
+        "plain",
+        true
+      ],
+      [
+        600,
+        "relatedpostid",
+        "id_like",
+        true
+      ],
+      [
+        888,
+        "name",
+        "filter|name_like",
+        true
+      ],
+      [
+        907,
+        "date",
+        "order_key",
+        true
+      ],
+      [
+        967,
+        "code",
+        "id_like",
+        true
+      ],
+      [
+        967,
+        "nationality",
+        "plain",
+        false
+      ],
+      [
+        978,
+        "raceid",
+        "id_like",
+        false
+      ],
+      [
+        985,
+        "forename",
+        "name_like",
+        false
+      ],
+      [
+        985,
+        "surname",
+        "name_like",
+        false
+      ],
+      [
+        986,
+        "name",
+        "name_like",
+        false
+      ],
+      [
+        988,
+        "duration",
+        "plain",
+        true
+      ],
+      [
+        989,
+        "forename",
+        "name_like",
+        false
+      ],
+      [
+        989,
+        "surname",
+        "name_like",
+        false
+      ],
+      [
+        993,
+        "location",
+        "plain",
+        true
+      ],
+      [
+        1009,
+        "forename",
+        "name_like",
+        false
+      ],
+      [
+        1009,
+        "surname",
+        "name_like",
+        false
+      ],
+      [
+        1021,
+        "height",
+        "filter",
+        true
+      ],
+      [
+        1127,
+        "player_name",
+        "name_like",
+        false
+      ],
+      [
+        1149,
+        "id",
+        "id_like",
+        false
+      ],
+      [
+        1149,
+        "sex",
+        "plain",
+        false
+      ],
+      [
+        1207,
+        "id",
+        "join_key|id_like",
+        false
+      ],
+      [
+        1216,
+        "birthday",
+        "order_key",
+        true
+      ],
+      [
+        1407,
+        "amount",
+        "order_key",
+        true
+      ],
+      [
+        1533,
+        "customerid",
+        "join_key|id_like",
+        false
+      ]
+    ]
+  },
+  "pure_missing_columns": {
+    "questions": 19,
+    "columns": 22,
+    "roles": {
+      "id_like": 13,
+      "join_key": 7,
+      "filter": 6,
+      "plain": 5,
+      "name_like": 2
+    },
+    "mentioned_in_question_pct": 22.7,
+    "mentioned_in_evidence_pct": 31.8,
+    "examples": [
+      [
+        180,
+        "account_id",
+        "join_key|id_like",
+        false
+      ],
+      [
+        217,
+        "atom_id",
+        "join_key|id_like",
+        false
+      ],
+      [
+        248,
+        "atom_id2",
+        "plain",
+        false
+      ],
+      [
+        252,
+        "atom_id",
+        "join_key|id_like",
+        false
+      ],
+      [
+        267,
+        "molecule_id",
+        "filter|join_key|id_like",
+        true
+      ],
+      [
+        296,
+        "atom_id",
+        "filter|id_like",
+        true
+      ],
+      [
+        296,
+        "bond_id",
+        "filter|join_key|id_like",
+        true
+      ],
+      [
+        446,
+        "id",
+        "id_like",
+        false
+      ],
+      [
+        446,
+        "name",
+        "filter|name_like",
+        false
+      ],
+      [
+        586,
+        "title",
+        "filter",
+        true
+      ],
+      [
+        628,
+        "id",
+        "id_like",
+        false
+      ],
+      [
+        726,
+        "height_cm",
+        "plain",
+        false
+      ],
+      [
+        866,
+        "forename",
+        "name_like",
+        false
+      ],
+      [
+        922,
+        "date",
+        "plain",
+        false
+      ],
+      [
+        1064,
+        "id",
+        "id_like",
+        false
+      ],
+      [
+        1144,
+        "id",
+        "id_like",
+        false
+      ],
+      [
+        1179,
+        "acl iga",
+        "plain",
+        false
+      ],
+      [
+        1179,
+        "acl igg",
+        "plain",
+        false
+      ],
+      [
+        1370,
+        "expense_id",
+        "id_like",
+        false
+      ],
+      [
+        1427,
+        "type",
+        "filter",
+        true
+      ],
+      [
+        1503,
+        "productid",
+        "join_key|id_like",
+        false
+      ],
+      [
+        1520,
+        "customerid",
+        "join_key|id_like",
+        false
+      ]
+    ]
+  },
+  "sort_key_projection_gold_superlatives": {
+    "value question (what is / how much ...) / key mentioned in question": {
+      "n": 35,
+      "gold_projects_sort_key_pct": 40.0,
+      "pred_projects_sort_key_pct": 40.0,
+      "disagreements": 2
+    },
+    "value question (what is / how much ...) / key not mentioned": {
+      "n": 41,
+      "gold_projects_sort_key_pct": 29.3,
+      "pred_projects_sort_key_pct": 26.8,
+      "disagreements": 1
+    },
+    "entity question (which / who / list ...) / key mentioned in question": {
+      "n": 46,
+      "gold_projects_sort_key_pct": 19.6,
+      "pred_projects_sort_key_pct": 23.9,
+      "disagreements": 4
+    },
+    "entity question (which / who / list ...) / key not mentioned": {
+      "n": 65,
+      "gold_projects_sort_key_pct": 18.5,
+      "pred_projects_sort_key_pct": 16.9,
+      "disagreements": 1
+    },
+    "other form / key mentioned in question": {
+      "n": 37,
+      "gold_projects_sort_key_pct": 27.0,
+      "pred_projects_sort_key_pct": 32.4,
+      "disagreements": 2
+    },
+    "other form / key not mentioned": {
+      "n": 38,
+      "gold_projects_sort_key_pct": 21.1,
+      "pred_projects_sort_key_pct": 18.4,
+      "disagreements": 3
+    }
+  },
+  "directive_clause_vs_width": {
+    "directive clause present": {
+      "n": 189,
+      "gold_width_ge2_pct": 58.7,
+      "pred_width_ge2_pct": 64.0,
+      "pred_wider_than_gold": 19,
+      "pred_narrower_than_gold": 7
+    },
+    "no directive clause": {
+      "n": 1344,
+      "gold_width_ge2_pct": 12.5,
+      "pred_width_ge2_pct": 12.8,
+      "pred_wider_than_gold": 28,
+      "pred_narrower_than_gold": 27
+    }
+  },
+  "aggregate_outputs": {
+    "n": 600,
+    "pred_adds_non_aggregate_column": 18,
+    "pred_drops_column": 9
+  },
+  "width_errors": {
+    "total": 81,
+    "pred_wider": 47,
+    "pred_narrower": 34,
+    "rate_by_feature": {
+      "value_q": {
+        "with": 2.9,
+        "without": 6.8
+      },
+      "entity_q": {
+        "with": 7.7,
+        "without": 4.4
+      },
+      "superlative": {
+        "with": 6.7,
+        "without": 4.7
+      },
+      "directive": {
+        "with": 13.8,
+        "without": 4.1
+      }
+    }
+  }
+}

@@ -1,0 +1,366 @@
+"""
+PostgreSQL Executor - Execute SQL queries against PostgreSQL databases.
+
+Usage:
+    python postgres_executor.py <sql_query_or_file> [options]
+
+Examples:
+    python postgres_executor.py "SELECT * FROM users LIMIT 10"
+    python postgres_executor.py query.sql -o results.json
+    python postgres_executor.py "SELECT * FROM orders" --host localhost --db mydb
+"""
+
+import argparse
+import json
+import csv
+import os
+from pathlib import Path
+from typing import Optional, Union
+from datetime import datetime, date
+from decimal import Decimal
+
+try:
+    import psycopg2
+    from psycopg2.extras import RealDictCursor
+except ImportError:
+    print("Error: psycopg2 not installed. Install with: pip install psycopg2-binary")
+    exit(1)
+
+
+class PostgresExecutor:
+    """Execute SQL queries against PostgreSQL databases."""
+
+    def __init__(
+        self,
+        host: str = "localhost",
+        port: int = 5432,
+        database: str = "postgres",
+        user: str = "postgres",
+        password: str = "",
+    ):
+        """
+        Initialize PostgreSQL connection parameters.
+
+        Args:
+            host: Database host
+            port: Database port
+            database: Database name
+            user: Username
+            password: Password
+        """
+        self.conn_params = {
+            "host": host,
+            "port": port,
+            "database": database,
+            "user": user,
+            "password": password,
+        }
+        self.connection = None
+
+    def connect(self):
+        """Establish database connection."""
+        if self.connection is None or self.connection.closed:
+            self.connection = psycopg2.connect(**self.conn_params)
+        return self.connection
+
+    def disconnect(self):
+        """Close database connection."""
+        if self.connection and not self.connection.closed:
+            self.connection.close()
+
+    def execute(
+        self,
+        sql: str,
+        params: Optional[tuple] = None,
+        fetch: bool = True,
+        as_dict: bool = True,
+    ) -> dict:
+        """
+        Execute a SQL query.
+
+        Args:
+            sql: SQL query string
+            params: Query parameters (for parameterized queries)
+            fetch: Whether to fetch results (False for INSERT/UPDATE/DELETE)
+            as_dict: Return rows as dictionaries (True) or tuples (False)
+
+        Returns:
+            Dictionary with execution results
+        """
+        conn = self.connect()
+        cursor_factory = RealDictCursor if as_dict else None
+
+        result = {
+            "success": False,
+            "query": sql,
+            "rows": [],
+            "columns": [],
+            "row_count": 0,
+            "execution_time_ms": 0,
+            "error": None,
+        }
+
+        try:
+            start_time = datetime.now()
+
+            with conn.cursor(cursor_factory=cursor_factory) as cursor:
+                cursor.execute(sql, params)
+
+                if fetch and cursor.description:
+                    result["columns"] = [desc[0] for desc in cursor.description]
+                    rows = cursor.fetchall()
+                    # Convert RealDictRow to regular dict
+                    if as_dict:
+                        result["rows"] = [dict(row) for row in rows]
+                    else:
+                        result["rows"] = [tuple(row) for row in rows]
+                    result["row_count"] = len(result["rows"])
+                else:
+                    result["row_count"] = cursor.rowcount
+
+                conn.commit()
+
+            end_time = datetime.now()
+            result["execution_time_ms"] = (end_time - start_time).total_seconds() * 1000
+            result["success"] = True
+
+        except psycopg2.Error as e:
+            conn.rollback()
+            result["error"] = str(e)
+            result["error_code"] = e.pgcode if hasattr(e, "pgcode") else None
+
+        return result
+
+    def execute_file(self, file_path: str, **kwargs) -> dict:
+        """
+        Execute SQL from a file.
+
+        Args:
+            file_path: Path to SQL file
+            **kwargs: Additional arguments passed to execute()
+
+        Returns:
+            Dictionary with execution results
+        """
+        with open(file_path, "r", encoding="utf-8") as f:
+            sql = f.read()
+        return self.execute(sql, **kwargs)
+
+    def execute_many(
+        self, queries: list[str], stop_on_error: bool = True
+    ) -> list[dict]:
+        """
+        Execute multiple SQL queries.
+
+        Args:
+            queries: List of SQL query strings
+            stop_on_error: Stop execution if a query fails
+
+        Returns:
+            List of execution results
+        """
+        results = []
+        for sql in queries:
+            result = self.execute(sql)
+            results.append(result)
+            if not result["success"] and stop_on_error:
+                break
+        return results
+
+    def get_tables(self, schema: str = "public") -> list[str]:
+        """Get list of tables in schema."""
+        sql = """
+            SELECT table_name
+            FROM information_schema.tables
+            WHERE table_schema = %s AND table_type = 'BASE TABLE'
+            ORDER BY table_name;
+        """
+        result = self.execute(sql, (schema,))
+        return [row["table_name"] for row in result["rows"]] if result["success"] else []
+
+    def get_schema(self, table: str, schema: str = "public") -> list[dict]:
+        """Get column information for a table."""
+        sql = """
+            SELECT
+                column_name,
+                data_type,
+                is_nullable,
+                column_default,
+                character_maximum_length
+            FROM information_schema.columns
+            WHERE table_schema = %s AND table_name = %s
+            ORDER BY ordinal_position;
+        """
+        result = self.execute(sql, (schema, table))
+        return result["rows"] if result["success"] else []
+
+    def __enter__(self):
+        self.connect()
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.disconnect()
+
+
+def json_serializer(obj):
+    """JSON serializer for objects not serializable by default."""
+    if isinstance(obj, (datetime, date)):
+        return obj.isoformat()
+    if isinstance(obj, Decimal):
+        return float(obj)
+    if isinstance(obj, bytes):
+        return obj.decode("utf-8", errors="replace")
+    raise TypeError(f"Type {type(obj)} not serializable")
+
+
+def format_results(result: dict, output_format: str = "table") -> str:
+    """
+    Format query results for display.
+
+    Args:
+        result: Execution result dictionary
+        output_format: Output format - 'table', 'json', 'csv'
+
+    Returns:
+        Formatted string
+    """
+    if not result["success"]:
+        return f"Error: {result['error']}"
+
+    if output_format == "json":
+        return json.dumps(result, indent=2, default=json_serializer)
+
+    if output_format == "csv":
+        if not result["rows"]:
+            return ""
+        lines = [",".join(result["columns"])]
+        for row in result["rows"]:
+            if isinstance(row, dict):
+                values = [str(row.get(col, "")) for col in result["columns"]]
+            else:
+                values = [str(v) for v in row]
+            lines.append(",".join(values))
+        return "\n".join(lines)
+
+    # Default: table format
+    if not result["rows"]:
+        return f"Query OK, {result['row_count']} rows affected ({result['execution_time_ms']:.2f} ms)"
+
+    columns = result["columns"]
+    rows = result["rows"]
+
+    # Calculate column widths
+    widths = {col: len(col) for col in columns}
+    for row in rows:
+        if isinstance(row, dict):
+            for col in columns:
+                val_len = len(str(row.get(col, "")))
+                widths[col] = max(widths[col], min(val_len, 50))
+        else:
+            for i, col in enumerate(columns):
+                val_len = len(str(row[i]))
+                widths[col] = max(widths[col], min(val_len, 50))
+
+    # Build table
+    header = " | ".join(col.ljust(widths[col]) for col in columns)
+    separator = "-+-".join("-" * widths[col] for col in columns)
+
+    lines = [header, separator]
+    for row in rows:
+        if isinstance(row, dict):
+            values = [str(row.get(col, ""))[:50].ljust(widths[col]) for col in columns]
+        else:
+            values = [str(v)[:50].ljust(widths[col]) for v in row]
+        lines.append(" | ".join(values))
+
+    lines.append(f"\n({result['row_count']} rows, {result['execution_time_ms']:.2f} ms)")
+    return "\n".join(lines)
+
+
+def save_results(result: dict, output_path: str, output_format: str = "json"):
+    """Save results to file."""
+    content = format_results(result, output_format)
+    Path(output_path).parent.mkdir(parents=True, exist_ok=True)
+    with open(output_path, "w", encoding="utf-8") as f:
+        f.write(content)
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        description="Execute SQL queries against PostgreSQL"
+    )
+    parser.add_argument(
+        "sql",
+        help="SQL query string or path to .sql file"
+    )
+    parser.add_argument(
+        "-o", "--output",
+        help="Output file path"
+    )
+    parser.add_argument(
+        "-f", "--format",
+        choices=["table", "json", "csv"],
+        default="table",
+        help="Output format (default: table)"
+    )
+    parser.add_argument(
+        "--host",
+        default=os.environ.get("PGHOST", "localhost"),
+        help="Database host (default: localhost or $PGHOST)"
+    )
+    parser.add_argument(
+        "--port",
+        type=int,
+        default=int(os.environ.get("PGPORT", 5432)),
+        help="Database port (default: 5432 or $PGPORT)"
+    )
+    parser.add_argument(
+        "--db", "--database",
+        dest="database",
+        default=os.environ.get("PGDATABASE", "postgres"),
+        help="Database name (default: postgres or $PGDATABASE)"
+    )
+    parser.add_argument(
+        "--user",
+        default=os.environ.get("PGUSER", "postgres"),
+        help="Username (default: postgres or $PGUSER)"
+    )
+    parser.add_argument(
+        "--password",
+        default=os.environ.get("PGPASSWORD", ""),
+        help="Password (default: $PGPASSWORD)"
+    )
+
+    args = parser.parse_args()
+
+    executor = PostgresExecutor(
+        host=args.host,
+        port=args.port,
+        database=args.database,
+        user=args.user,
+        password=args.password,
+    )
+
+    # Check if input is a file
+    sql_input = args.sql
+    if Path(sql_input).exists() and sql_input.endswith(".sql"):
+        with open(sql_input, "r", encoding="utf-8") as f:
+            sql_input = f.read()
+
+    try:
+        with executor:
+            result = executor.execute(sql_input)
+
+        if args.output:
+            save_results(result, args.output, args.format)
+            print(f"Results saved to: {args.output}")
+        else:
+            print(format_results(result, args.format))
+
+    except psycopg2.OperationalError as e:
+        print(f"Connection error: {e}")
+        exit(1)
+
+
+if __name__ == "__main__":
+    main()

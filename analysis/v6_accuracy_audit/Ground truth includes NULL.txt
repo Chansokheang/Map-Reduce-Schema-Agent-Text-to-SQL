@@ -1,0 +1,41 @@
+Ground truth includes NULL
+{    "question_id": 538,    "db_id": "codebase_community",    "question": "Please list the titles of the posts owned by the user csgillespie?",    "evidence": "\"csgillespie\" is the DisplayName of user",    "SQL": "SELECT T1.Title FROM posts AS T1 INNER JOIN users AS T2 ON T1.OwnerUserId = T2.Id WHERE T2.DisplayName = 'csgillespie'",    "difficulty": "simple"  }{    "question_id": 538,    "db_id": "codebase_community",    "question": "Please list the titles of the posts owned by the user csgillespie?",    "evidence": "\"csgillespie\" is the DisplayName of user",    "SQL": "SELECT T1.Title FROM posts AS T1 INNER JOIN users AS T2 ON T1.OwnerUserId = T2.Id WHERE T2.DisplayName = 'csgillespie'",    "difficulty": "simple"  }Ground Truth Query #538
+{
+"question_id": 538,
+"db_id": "codebase_community",
+"question": "Please list the titles of the posts owned by the user csgillespie?",
+"evidence": "\"csgillespie\" is the DisplayName of user",
+"SQL": "SELECT T1.Title FROM posts AS T1 INNER JOIN users AS T2 ON T1.OwnerUserId = T2.Id WHERE T2.DisplayName = 'csgillespie'",
+"difficulty": "simple"
+}
+:
+Generation:
+SELECT p.Title\nFROM posts p\nINNER JOIN users u ON p.OwnerUserId = u.Id\nWHERE u.DisplayName = 'csgillespie'\nAND p.Title IS NOT NULL
+{    "question_id": 648,    "db_id": "codebase_community",    "question": "Provide the users' display names and available website URLs of the post with favorite count of more than 150.",    "evidence": "favorite count of more than 150 refers to FavoriteCount > 150;",    "SQL": "SELECT T1.DisplayName, T1.WebsiteUrl FROM users AS T1 INNER JOIN posts AS T2 ON T1.Id = T2.OwnerUserId WHERE T2.FavoriteCount > 150",    "difficulty": "simple"  }{    "question_id": 648,    "db_id": "codebase_community",    "question": "Provide the users' display names and available website URLs of the post with favorite count of more than 150.",    "evidence": "favorite count of more than 150 refers to FavoriteCount > 150;",    "SQL": "SELECT T1.DisplayName, T1.WebsiteUrl FROM users AS T1 INNER JOIN posts AS T2 ON T1.Id = T2.OwnerUserId WHERE T2.FavoriteCount > 150",    "difficulty": "simple"  }Ground Truth Query #648
+"question_id": 648,
+"question": "Provide the users' display names and available website URLs of the post with favorite count of more than 150.",
+"evidence": "favorite count of more than 150 refers to FavoriteCount > 150;",
+"SQL": "SELECT T1.DisplayName, T1.WebsiteUrl FROM users AS T1 INNER JOIN posts AS T2 ON T1.Id = T2.OwnerUserId WHERE T2.FavoriteCount > 150",
+SELECT DISTINCT u.DisplayName, u.WebsiteUrl FROM posts p INNER JOIN users u ON p.OwnerUserId = u.Id WHERE p.FavoriteCount > 150 AND u.WebsiteUrl IS NOT NULL
+Reason: The question set condition to provide both display names and available website URLs, the record contains none websiteUrl should not be included.
+{    "question_id": 720,    "db_id": "superhero",    "question": "Please list the full names of all the superheroes with over 15 super powers.",    "evidence": "15 super powers refers to COUNT(full_name) > 15",    "SQL": "SELECT DISTINCT T1.full_name FROM superhero AS T1 INNER JOIN hero_power AS T2 ON T1.id = T2.hero_id GROUP BY T1.full_name HAVING COUNT(T2.power_id) > 15",    "difficulty": "simple"  }{    "question_id": 720,    "db_id": "superhero",    "question": "Please list the full names of all the superheroes with over 15 super powers.",    "evidence": "15 super powers refers to COUNT(full_name) > 15",    "SQL": "SELECT DISTINCT T1.full_name FROM superhero AS T1 INNER JOIN hero_power AS T2 ON T1.id = T2.hero_id GROUP BY T1.full_name HAVING COUNT(T2.power_id) > 15",    "difficulty": "simple"  }Ground Truth Query #720
+"question_id": 720,
+"db_id": "superhero",
+"question": "Please list the full names of all the superheroes with over 15 super powers.",
+"evidence": "15 super powers refers to COUNT(full_name) > 15",
+"SQL": "SELECT DISTINCT T1.full_name FROM superhero AS T1 INNER JOIN hero_power AS T2 ON T1.id = T2.hero_id GROUP BY T1.full_name HAVING COUNT(T2.power_id) > 15",
+SELECT T1.full_name\nFROM superhero AS T1\nINNER JOIN hero_power AS T2 ON T1.id = T2.hero_id\nGROUP BY T1.full_name\nHAVING COUNT(T1.full_name) > 15
+{    "question_id": 856,    "db_id": "formula_1",    "question": "Please list the time of the races held on Sepang International Circuit.",    "evidence": "",    "SQL": "SELECT DISTINCT T2.time FROM circuits AS T1 INNER JOIN races AS T2 ON T2.circuitID = T1.circuitId WHERE T1.name = 'Sepang International Circuit'",    "difficulty": "simple"  },{    "question_id": 856,    "db_id": "formula_1",    "question": "Please list the time of the races held on Sepang International Circuit.",    "evidence": "",    "SQL": "SELECT DISTINCT T2.time FROM circuits AS T1 INNER JOIN races AS T2 ON T2.circuitID = T1.circuitId WHERE T1.name = 'Sepang International Circuit'",    "difficulty": "simple"  },Ground Truth Query #856
+"question_id": 856,
+"db_id": "formula_1",
+"question": "Please list the time of the races held on Sepang International Circuit.",
+"evidence": "",
+"SQL": "SELECT DISTINCT T2.time FROM circuits AS T1 INNER JOIN races AS T2 ON T2.circuitID = T1.circuitId WHERE T1.name = 'Sepang International Circuit'",
+},
+SELECT DISTINCT r.time FROM races r INNER JOIN circuits c ON r.circuitId = c.circuitId WHERE c.name = 'Sepang International Circuit' AND r.time IS NOT NULL
+{    "question_id": 964,    "db_id": "formula_1",    "question": "List out the code for drivers who have nationality in America.",    "evidence": "nationality = 'America'",    "SQL": "SELECT code FROM drivers WHERE Nationality = 'American'",    "difficulty": "simple"  }{    "question_id": 964,    "db_id": "formula_1",    "question": "List out the code for drivers who have nationality in America.",    "evidence": "nationality = 'America'",    "SQL": "SELECT code FROM drivers WHERE Nationality = 'American'",    "difficulty": "simple"  }Ground Truth Query #964
+"question_id": 964,
+"question": "List out the code for drivers who have nationality in America.",
+"evidence": "nationality = 'America'",
+"SQL": "SELECT code FROM drivers WHERE Nationality = 'American'",
+SELECT code FROM drivers WHERE nationality = 'American' AND code IS NOT NULL

@@ -1,0 +1,78 @@
+{
+  "n": 88,
+  "source_prediction_hashes": {
+    "output\\claude_headless_v6\\selected.json": "aaebe35088a21ff710cbad0487ae45996aa66486df4b96772e9c792be00ae921",
+    "output\\claude_headless_v6\\candidate_full_schema.json": "524c179fbe90e2bf44c58dafed3e8c5f2f3c245be9766d20eb9bfdc305d0ce38",
+    "output\\claude_headless_v6\\candidate_sme_metadata.json": "c4a094bc67ecf6ce5443cb1b6617a2c5e022264ff2a5f098c056ae292dbf591b",
+    "output\\claude_headless_v6\\candidate_minimal_profile.json": "814817fdfff4acac0584b8fdfe960f5ed8d1506ef79c632bed2654dcc3fb6e70",
+    "output\\claude_headless_v6\\candidate_focused_schema.json": "160aa24d5a663a50e576af2148e08a75fed136456b620f022d272362c75b94bc",
+    "output\\claude_headless_v6\\candidate_full_profile.json": "e04312ffec2952fa9942ace8be054481b7bf8d171794a5f7654cc90c67ae8c90",
+    "output\\claude_headless_v6\\refined_selected.json": "8909231952e0d9599379aed8d3d5b1d9a358a4b2eba23159105411c9b6173cca"
+  },
+  "manual_primary_difference_counts": {
+    "output_attributes_and_representation": 20,
+    "field_or_relationship_meaning": 21,
+    "population_and_join_membership": 13,
+    "aggregation_grain": 9,
+    "predicates_arithmetic_and_types": 12,
+    "top_n_ties_and_row_selection": 6,
+    "null_and_zero_policy": 7
+  },
+  "diagnostic_categories": {
+    "other_mismatch": 74,
+    "column_order": 2,
+    "extra_columns": 5,
+    "missing_columns": 2,
+    "null_rows_only": 5
+  },
+  "number_of_passing_candidates": {
+    "1": 36,
+    "3": 12,
+    "2": 30,
+    "4": 10
+  },
+  "by_database": {
+    "california_schools": 9,
+    "financial": 5,
+    "toxicology": 9,
+    "card_games": 9,
+    "codebase_community": 9,
+    "superhero": 3,
+    "formula_1": 17,
+    "european_football_2": 4,
+    "thrombosis_prediction": 12,
+    "student_club": 6,
+    "debit_card_specializing": 5
+  },
+  "plurality_recoveries_within_88": 26,
+  "plurality_full_dev_correct": 1067,
+  "exact_selected_membership": 76,
+  "parser_normalized_selected_membership": 87,
+  "schema_gate_omission_ids": [
+    58,
+    376,
+    453,
+    486,
+    557,
+    887,
+    898,
+    907,
+    943,
+    1108,
+    1149,
+    1218,
+    1249,
+    1282,
+    1525
+  ],
+  "same_width_as_a_passing_candidate": 78,
+  "all_passing_candidates_same_physical_row_count": 49,
+  "gold_empty_cases": 0,
+  "selected_empty_cases": 3,
+  "disagreement_trigger": {
+    "n": 435,
+    "currently_correct": 195,
+    "recoverable_failures": 88
+  },
+  "scope": "Retrospective dev diagnosis. Manual categories are primary observed differences, may overlap conceptually, and do not prove the historical judge's causal reasoning."
+}

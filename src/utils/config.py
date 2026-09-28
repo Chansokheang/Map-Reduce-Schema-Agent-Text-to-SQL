@@ -1,0 +1,118 @@
+"""
+Configuration Module
+
+Handles pipeline configuration and settings.
+"""
+
+from dataclasses import dataclass, field
+from pathlib import Path
+from typing import Any
+import json
+
+
+@dataclass
+class Config:
+    """
+    Pipeline configuration.
+
+    Contains all settings for the QA-SQL pipeline.
+    """
+
+    # Paths
+    data_dir: Path = Path("data/bird_data")
+    schema_dir: Path = None        # per-DB schema JSONs ({schema_dir}/{db_id}_schema.json)
+    profile_dir: Path = None
+    output_dir: Path = Path("output/ver1")
+    databases_dir: Path = None     # SQLite databases dir (defaults to {data_dir}/dev_databases)
+    tables_json: Path = None       # BIRD combined tables.json (informational; pipeline uses per-DB schemas)
+
+    # LLM Settings
+    llm_provider: str = "anthropic"  # "anthropic", "openai", or "ollama"
+    llm_model: str = "claude-sonnet-4-5-20250929"
+    llm_max_tokens: int = 2048
+    llm_temperature: float = 0.0
+
+    # OpenAI Settings (used when llm_provider="openai")
+    openai_model: str = "gpt-4o-mini"  # Default OpenAI model
+
+    # Ollama Settings (used when llm_provider="ollama")
+    ollama_base_url: str = "http://localhost:11434"
+    ollama_model: str = "llama3.2"  # Default Ollama model
+
+    # Gemma Settings (used when llm_provider="gemma")
+    gemma_base_url: str = "http://gpu-local.sovanreach.com:9020"
+    gemma_model: str = "gemma-4-E4B-8b-instruct"
+    gemma_api_key: str = None
+
+    # vLLM Settings (used when llm_provider="vllm")
+    # OpenAI-compatible self-hosted endpoint (defaults to the aiclab.dev
+    # Qwen3-14B server). API key resolves explicit > VLLM_API_KEY env var.
+    vllm_base_url: str = "https://llm.aiclab.dev"
+    vllm_model: str = "qwen3-14b"
+    vllm_api_key: str = None
+    vllm_enable_thinking: bool = False
+
+    # Schema Agent Settings
+    max_workers: int = 4
+    relevance_threshold: float = 0.5
+
+    # Candidate Generation Settings
+    num_candidates: int = 5
+    generation_strategies: list[str] = field(default_factory=lambda: [
+        "focused_schema",
+        "full_schema",
+        "minimal_profile",
+        "sme_metadata",
+        "full_profile"
+    ])
+
+    # Execution Settings
+    query_timeout: float = 30.0
+    max_refinement_attempts: int = 2
+
+    # Fixer Settings (post-execution review/refine before judge)
+    fixer_enabled: bool = True
+    fixer_max_iterations: int = 3
+
+    def __post_init__(self):
+        """Set derived paths after initialization."""
+        if self.schema_dir is None:
+            self.schema_dir = self.data_dir / "schemas"
+        if self.profile_dir is None:
+            self.profile_dir = self.data_dir / "descriptions"
+        if self.databases_dir is None:
+            self.databases_dir = self.data_dir / "dev_databases"
+
+    @classmethod
+    def from_json(cls, path: Path) -> 'Config':
+        """
+        Load configuration from JSON file.
+
+        Args:
+            path: Path to JSON config file
+
+        Returns:
+            Config instance
+        """
+        # TODO: Implement JSON loading
+        pass
+
+    def to_json(self, path: Path):
+        """
+        Save configuration to JSON file.
+
+        Args:
+            path: Path to save JSON config
+        """
+        # TODO: Implement JSON saving
+        pass
+
+    def to_dict(self) -> dict[str, Any]:
+        """
+        Convert config to dictionary.
+
+        Returns:
+            Configuration dictionary
+        """
+        # TODO: Implement dict conversion
+        pass

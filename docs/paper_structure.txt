@@ -1,0 +1,363 @@
+================================================================================
+QA-SQL: Query Augmentation to SQL via Map-Reduce Schema Agent
+SCIENTIFIC PAPER STRUCTURE
+================================================================================
+
+Paper Title (Options):
+- "QA-SQL: A Map-Reduce Schema Agent Approach for Text-to-SQL Generation"
+- "Enhancing Text-to-SQL with Agentic Query Decomposition and Multi-Strategy Candidate Selection"
+- "Map-Reduce Schema Filtering for Improved Natural Language to SQL Translation"
+
+Target Venues: ACL, EMNLP, NAACL, AAAI, SIGMOD, VLDB
+
+================================================================================
+ABSTRACT (150-250 words)
+================================================================================
+
+Key Points to Cover:
+- Problem: Text-to-SQL generation struggles with large database schemas
+- Gap: Existing methods use full schema, causing noise and irrelevant context
+- Proposal: Two-phase pipeline with Map-Reduce Schema Agent + SQL Selection Agent
+- Method:
+  * Agentic decomposition of NL queries into semantic components
+  * Parallel workers score table relevance (RC coefficient)
+  * 5 context-aware SQL generation strategies
+  * LLM-as-a-Judge for candidate selection with iterative refinement
+- Results: [Execution Accuracy on BIRD benchmark]
+- Contribution: Novel schema filtering approach + multi-strategy generation
+
+Keywords: Text-to-SQL, Natural Language Interface, Schema Filtering,
+          Large Language Models, Query Decomposition, BIRD Benchmark
+
+================================================================================
+1. INTRODUCTION (1-1.5 pages)
+================================================================================
+
+1.1 Background & Motivation
+- Growing need for natural language interfaces to databases
+- Challenges: schema complexity, ambiguous queries, domain knowledge
+- BIRD benchmark: real-world databases with external knowledge requirements
+
+1.2 Problem Statement
+- Large schemas introduce noise in LLM context
+- Single-strategy SQL generation may miss optimal solutions
+- Lack of iterative refinement in existing approaches
+
+1.3 Research Questions
+- RQ1: How can we effectively filter irrelevant schema elements?
+- RQ2: Does multi-strategy generation improve SQL quality?
+- RQ3: Can LLM-as-a-Judge reliably select the best candidate?
+
+1.4 Contributions
+- Novel Map-Reduce Schema Agent for query-aware schema filtering
+- Agentic decomposition into semantic components (entity, filter, aggregation, projection)
+- 5 context-aware SQL generation strategies
+- Iterative refinement with execution feedback (max 3 attempts)
+- LLM-as-a-Judge evaluation framework
+- Comprehensive evaluation on BIRD benchmark
+
+1.5 Paper Organization
+- Section 2: Related Work
+- Section 3: Proposed Method
+- Section 4: Experimental Setup
+- Section 5: Results and Analysis
+- Section 6: Conclusion
+
+================================================================================
+2. RELATED WORK (1 page)
+================================================================================
+
+2.1 Text-to-SQL Approaches
+- Rule-based methods (early work)
+- Seq2Seq models (SQLNet, TypeSQL)
+- Pre-trained language models (BRIDGE, RAT-SQL, PICARD)
+- LLM-based approaches (DIN-SQL, DAIL-SQL, C3)
+
+2.2 Schema Linking and Filtering
+- Schema linking in neural approaches
+- Column/table selection techniques
+- Relevance scoring methods
+
+2.3 LLM Prompting Strategies
+- In-context learning for SQL
+- Chain-of-thought prompting
+- Self-consistency and voting methods
+- Multi-agent approaches
+
+2.4 Benchmark Datasets
+- Spider benchmark
+- BIRD benchmark (focus on external knowledge)
+- Differences and challenges
+
+2.5 Gap Analysis
+- Existing methods don't decompose queries into semantic components
+- Limited use of parallel schema verification
+- Single-strategy generation dominates
+- Lack of execution-based iterative refinement
+
+================================================================================
+3. PROPOSED METHOD (2-3 pages)
+================================================================================
+
+3.1 System Overview
+- Two-phase architecture diagram (reference proposed_method.png)
+- Phase 1: Map-Reduce Schema Agent
+- Phase 2: SQL Selection Agent
+
+3.2 Phase 1: Map-Reduce Schema Agent
+
+    3.2.1 Agentic Decomposition (The Manager)
+    - Input: Natural language query
+    - Process: LLM-based semantic parsing
+    - Output: Query components
+      * [entity] - main data entity (e.g., "members", "schools")
+      * [filter] - filtering conditions (e.g., "in Alameda County")
+      * [aggregation] - operations (e.g., "highest", "count")
+      * [projection] - output fields (e.g., "zip code", "phone")
+    - Example decomposition (include figure)
+
+    3.2.2 Mapping Function (Parallel Workers)
+    - One worker per table (parallel execution)
+    - Each worker: mini-LLM for relevance scoring
+    - Relevance Coefficient (RC): 0.0 to 1.0
+    - Scoring criteria:
+      * Table name semantic match
+      * Column name/description match
+      * Query component alignment
+    - Discretization: RC → {1.0, 0.5, 0.0}
+
+    3.2.3 Reduce Function (Ranking & Filtering)
+    - Collect all RC scores from workers
+    - Apply threshold filter (RC >= 0.50)
+    - Sort tables by relevance descending
+    - Output: Focused Schema
+
+3.3 Phase 2: SQL Selection Agent
+
+    3.3.1 Context-Aware Generation (5 Strategies)
+
+    | ID | Strategy        | Context Description                    |
+    |----|-----------------|----------------------------------------|
+    | Q1 | Full Schema     | Complete database schema, no hints     |
+    | Q2 | SME Metadata    | Schema + evidence from domain experts  |
+    | Q3 | Minimal Profile | Schema + auto-generated descriptions   |
+    | Q4 | Focused Schema  | Relevant tables only (from Phase 1)    |
+    | Q5 | Full Profile    | Focused schema + descriptions + hints  |
+
+    - Rationale for each strategy
+    - Prompt templates (system + user prompts)
+    - Parallel generation for efficiency
+
+    3.3.2 Execution & Iterative Refinement
+    - Execute each candidate SQL against database
+    - If error: LLM refines SQL with error feedback
+    - Max 3 iterations per candidate
+    - Success criteria: executes without error + returns results
+    - Rejection: 3 failed attempts → mark as rejected
+
+    3.3.3 Last Resort Mechanism
+    - Triggered when ALL 5 candidates fail
+    - Uses failed attempts as negative examples
+    - Generates one final corrected SQL
+    - Prevents complete pipeline failure
+
+    3.3.4 LLM-as-a-Judge Selection
+    - Role: Senior SQL Reviewer
+    - Input: Successful candidates only
+    - Evaluation criteria:
+      * Correctness: Does SQL answer the question?
+      * Completeness: All required information returned?
+      * Efficiency: Proper JOINs, no redundant operations?
+      * Logic: Correct filtering and aggregation?
+    - Output: Selected SQL + confidence score + reasoning
+
+3.4 Implementation Details
+- LLM model: Claude (Sonnet/Haiku)
+- Parallelization: ThreadPoolExecutor
+- Database: SQLite (BIRD format)
+- Timeout: 30 seconds per query
+- Threshold: RC >= 0.50
+
+================================================================================
+4. EXPERIMENTAL SETUP (1 page)
+================================================================================
+
+4.1 Dataset
+- BIRD Benchmark (BIg Bench for LaRge-scale Database)
+- Statistics: X databases, Y questions, Z tables
+- Difficulty levels: simple, moderate, challenging
+- External knowledge requirements
+
+4.2 Evaluation Metrics
+- Execution Accuracy (EX): SQL executes correctly
+- Valid Efficiency Score (VES): Query efficiency measure
+- Exact Match (EM): SQL string match (optional)
+
+4.3 Baselines
+- Zero-shot LLM (GPT-4, Claude)
+- DIN-SQL
+- DAIL-SQL
+- C3
+- Other SOTA methods on BIRD leaderboard
+
+4.4 Ablation Studies
+- Without Map-Reduce Schema Agent (full schema only)
+- Single strategy vs. 5 strategies
+- Without iterative refinement
+- Without LLM Judge (random/first selection)
+- Different relevance thresholds (0.3, 0.5, 0.7)
+
+4.5 Implementation
+- Hardware: [GPU/CPU specifications]
+- LLM API: Anthropic Claude API
+- Code: Python, SQLite
+- Reproducibility: GitHub repository link
+
+================================================================================
+5. RESULTS AND ANALYSIS (1.5-2 pages)
+================================================================================
+
+5.1 Main Results
+- Table: Execution Accuracy comparison with baselines
+- Performance by difficulty level
+- Performance by database domain
+
+5.2 Ablation Study Results
+- Impact of schema filtering
+- Strategy contribution analysis
+- Refinement iteration analysis
+- Threshold sensitivity
+
+5.3 Schema Agent Analysis
+- Average schema reduction (% tables filtered)
+- Relevance score distribution
+- False positive/negative analysis
+- Time overhead analysis
+
+5.4 Candidate Generation Analysis
+- Success rate per strategy
+- Which strategy wins most often?
+- Strategy complementarity
+
+5.5 Judge Analysis
+- Agreement with ground truth
+- Confidence calibration
+- Error analysis
+
+5.6 Case Studies
+- Example 1: Successful complex query
+- Example 2: Schema filtering benefit
+- Example 3: Last resort recovery
+- Example 4: Failure case analysis
+
+5.7 Efficiency Analysis
+- Pipeline latency breakdown
+- Parallel vs sequential comparison
+- Cost analysis (API calls)
+
+================================================================================
+6. DISCUSSION (0.5 page)
+================================================================================
+
+6.1 Key Findings
+- Schema filtering significantly reduces noise
+- Multi-strategy generation captures diverse solutions
+- Iterative refinement recovers from initial errors
+- LLM Judge provides reliable selection
+
+6.2 Limitations
+- Dependency on LLM quality
+- API cost for parallel calls
+- Threshold sensitivity
+- Limited to SQLite (BIRD format)
+
+6.3 Future Work
+- Extension to other databases (PostgreSQL, MySQL)
+- Fine-tuning smaller models for workers
+- Dynamic threshold adjustment
+- Integration with RAG for domain knowledge
+
+================================================================================
+7. CONCLUSION (0.5 page)
+================================================================================
+
+Summary Points:
+- Introduced QA-SQL: two-phase Text-to-SQL pipeline
+- Map-Reduce Schema Agent effectively filters irrelevant tables
+- 5 context-aware strategies provide diverse candidates
+- LLM-as-a-Judge reliably selects best SQL
+- Achieved [X%] execution accuracy on BIRD benchmark
+- Open-source implementation available
+
+================================================================================
+REFERENCES (1-2 pages)
+================================================================================
+
+Key Papers to Cite:
+1. BIRD Benchmark paper
+2. Spider Benchmark paper
+3. DIN-SQL, DAIL-SQL, C3
+4. RAT-SQL, BRIDGE
+5. LLM prompting papers (Chain-of-thought, Self-consistency)
+6. Anthropic Claude technical report
+7. Map-Reduce paradigm (Dean & Ghemawat)
+8. LLM-as-a-Judge papers
+
+================================================================================
+APPENDIX
+================================================================================
+
+A. Prompt Templates
+- Query decomposition prompt
+- Worker relevance scoring prompt
+- SQL generation prompts (all 5 strategies)
+- Refinement prompt
+- Judge evaluation prompt
+
+B. Full Results Tables
+- Per-database breakdown
+- Per-difficulty breakdown
+- Strategy success rates
+
+C. Additional Examples
+- More case studies
+- Error analysis examples
+
+================================================================================
+FIGURES AND TABLES TO PREPARE
+================================================================================
+
+Figures:
+1. System architecture diagram (proposed_method.png - enhance for paper)
+2. Map-Reduce Schema Agent workflow
+3. Query decomposition example
+4. Execution accuracy comparison bar chart
+5. Ablation study results
+6. Schema reduction statistics
+7. Strategy contribution pie chart
+8. Latency breakdown
+
+Tables:
+1. Main results comparison with baselines
+2. Ablation study results
+3. Strategy-wise success rates
+4. Schema filtering statistics
+5. Judge accuracy analysis
+6. Dataset statistics
+
+================================================================================
+WRITING TIPS FOR AI GENERATION
+================================================================================
+
+1. Use formal academic tone
+2. Cite relevant work with [Author, Year] format
+3. Use precise technical terminology
+4. Include mathematical notation where appropriate (e.g., RC threshold τ)
+5. Quantify claims with specific numbers
+6. Use examples to illustrate complex concepts
+7. Maintain logical flow between sections
+8. Highlight novel contributions clearly
+9. Acknowledge limitations honestly
+10. Connect to broader impact
+
+================================================================================
