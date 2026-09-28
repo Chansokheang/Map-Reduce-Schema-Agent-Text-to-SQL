@@ -1,0 +1,38 @@
+{
+  "selected_source": "C:\\Users\\user\\OneDrive\\Documents\\02. Master Degree\\03. Lab\\10. Experiment\\03. QA-SQL-Query Augmentation to SQL\\output\\gr_v1\\selected.json",
+  "selected_sha256": "0bb37674ecd2fb96e6e0364304b0aeb55a5d17bfba5e0b2eaefe4d9ee2332dc3",
+  "questions_source": "C:\\Users\\user\\OneDrive\\Documents\\02. Master Degree\\03. Lab\\10. Experiment\\03. QA-SQL-Query Augmentation to SQL\\data\\bird_data\\dev.json",
+  "client": "CliClient",
+  "model": "sonnet",
+  "allow_trim": true,
+  "n": 1534,
+  "statuses": {
+    "not_a_simple_select": 8,
+    "reordered": 16,
+    "retained": 269,
+    "single_column": 1239,
+    "trimmed": 2
+  },
+  "changed_keys": [
+    "17",
+    "33",
+    "63",
+    "80",
+    "81",
+    "88",
+    "402",
+    "430",
+    "431",
+    "527",
+    "587",
+    "728",
+    "894",
+    "978",
+    "1021",
+    "1224",
+    "1235",
+    "1467"
+  ],
+  "output": "C:\\Users\\user\\OneDrive\\Documents\\02. Master Degree\\03. Lab\\10. Experiment\\03. QA-SQL-Query Augmentation to SQL\\output\\gr_v1\\projection_review_postcount\\selected_projection_reviewed.json",
+  "output_sha256": "3d91d0fb7ed2b307f93b2fc9d0f6d8cef8837167d31bd3b803be458a8333aa9d"
+}

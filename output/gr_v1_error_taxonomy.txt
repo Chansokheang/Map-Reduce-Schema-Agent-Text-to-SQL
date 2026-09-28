@@ -1,0 +1,150 @@
+  scored 500/3068
+  scored 1000/3068
+  scored 1500/3068
+  scored 2000/3068
+  scored 2500/3068
+  scored 3000/3068
+combined: 1119/1534
+v6: 1102/1534
+
+415 failures to classify
+
+  classified 100/415
+  classified 200/415
+  classified 300/415
+  classified 400/415
+category                            n   share
+wrong_tables                       98   23.6%
+aggregation_function               76   18.3%
+projection_column_count            67   16.1%
+wrong_columns                      49   11.8%
+distinct                           46   11.1%
+same_shape_different_values        27    6.5%
+filter_values                      20    4.8%
+row_count_differs                  15    3.6%
+returns_nothing                    11    2.7%
+execution_error                     3    0.7%
+gold_error                          2    0.5%
+limit_or_order                      1    0.2%
+
+examples per category
+
+wrong_tables:
+  Q25 [california_schools] Name schools in Riverside which the average of average math score for SAT is g
+      ['schools'] vs missing ['frpm']
+  Q43 [california_schools] What is the average math score of the school with the lowest average score for
+      [] vs missing ['schools']
+  Q65 [california_schools] What is the ratio in percentage of Santa Clara County schools that are locally
+      ['frpm'] vs missing ['schools']
+
+aggregation_function:
+  Q15 [california_schools] Which active district has the highest average score in Reading?
+      {'Avg': 1} vs gold {}
+  Q53 [california_schools] How many test takers are there at the school/s whose mailing city address is i
+      {'Sum': 1} vs gold {}
+  Q30 [california_schools] Which cities have the top 5 lowest enrollment number for students in grades 1 
+      {'Min': 1} vs gold {'Sum': 1}
+
+projection_column_count:
+  Q63 [california_schools] In chartered schools with charter number 00D2, what are the names of all the a
+      8 vs gold 4
+  Q49 [california_schools] Which different county has the most number of closed schools? Please provide t
+      2 vs gold 3
+  Q87 [california_schools] What are the valid e-mail addresses of the administrator of the school located
+      3 vs gold 2
+
+wrong_columns:
+  Q26 [california_schools] State the names and full communication address of high schools in Monterey whi
+      extra ['county name', 'frpm count (ages 5-17)', 'school'] missing ['county', 'free meal count (ages 5-17)', 'school name']
+  Q33 [california_schools] If there are any, what are the websites address of the schools with a free mea
+      extra ['school'] missing ['school name']
+  Q23 [california_schools] List the names of schools with more than 30 difference in enrollements between
+      extra ['school name'] missing ['school']
+
+distinct:
+  Q319 [toxicology] How many elements are contained in bond_id TR001_3_4?
+      gold has it
+  Q330 [toxicology] Calculate the percentage of carcinogenic molecules with triple bonded Hidrogen
+      gold has it
+  Q336 [toxicology] in molecules with triple bonds, how many of them are not carcinogenic?
+      gold has it
+
+same_shape_different_values:
+  Q152 [financial] What is the average number of crimes committed in 1995 in regions where the nu
+      [(9675.038461538461,)] vs [(29670.44951923077,)]
+  Q171 [financial] What was the difference in the number of crimes committed in East and North Bo
+      [(17734,)] vs [(-17734,)]
+  Q428 [card_games] What is the name of set number 5 and its translation?
+      [('Fourth Edition Foreign Black Border', None)] vs [('Tenth Edition', 'Set Base Decima Edizione')]
+
+filter_values:
+  Q16 [california_schools] How many schools in merged Alameda have number of test takers less than 100?
+      ['alameda', 'lake']
+  Q37 [california_schools] What is the complete address of the school with the lowest excellence rate? In
+      ['0']
+  Q237 [toxicology] Which molecule does the atom TR001_10 belong to? Please state whether this mol
+      ['+', 'no', 'yes']
+
+row_count_differs:
+  Q214 [toxicology] What type of label is not on molecules with atoms with tin?
+      1 vs gold 2
+  Q257 [toxicology] List down atom id2 for atoms with element sulfur.
+      113 vs gold 268
+  Q359 [card_games] What is the type of the card "Ancestor's Chosen" as originally printed?
+      4 vs gold 3
+
+returns_nothing:
+  Q411 [card_games] To which artist does the card with the text "Das perfekte Gegenmittel zu einer
+      gold 1 rows
+  Q429 [card_games] What is the language and expansion type of set number 206?
+      gold 1 rows
+  Q519 [card_games] What is the language of the "Battlebond" set?
+      gold 1 rows
+
+execution_error:
+  Q156 [financial] Who is the owner of the account with the largest loan amount?
+      OperationalError: near "ORDEB": syntax error
+  Q903 [formula_1] How many times did Michael Schumacher won from races hosted in Sepang Internat
+      OperationalError: interrupted
+  Q1014 [formula_1] Please list the lap records for the circuits in Italy.
+      OperationalError: interrupted
+
+gold_error:
+  Q518 [card_games] Which of the play format has the highest number of banned status? Indicate the
+      interrupted
+  Q701 [codebase_community] Among all the posts posted by the most influential user, identify the percenta
+      interrupted
+
+limit_or_order:
+  Q930 [formula_1] In which Formula_1 race did Lewis Hamilton rank the highest?
+
+
+vs v6: combined loses 50, gains 67, net +17
+
+the 50 v6 wins we lose, by category:
+  distinct                          13
+  projection_column_count            7
+  wrong_tables                       7
+  same_shape_different_values        6
+  aggregation_function               5
+  wrong_columns                      4
+  returns_nothing                    3
+  row_count_differs                  2
+  filter_values                      2
+  execution_error                    1
+
+  keys: Q63 Q88 Q90 Q120 Q128 Q132 Q156 Q169 Q238 Q257 Q264 Q308 Q319 Q336 Q361 Q363 Q392 Q413 Q428 Q437 Q461 Q529 Q650 Q653 Q773 Q805 Q812 Q837 Q979 Q984 Q1000 Q1005 Q1017 Q1038 Q1052 Q1060 Q1061 Q1076 Q1085 Q1087
+
+
+failures by database (top categories)
+  card_games                  66   distinct 18, aggregation_function 12, wrong_tables 10
+  thrombosis_prediction       60   wrong_tables 12, aggregation_function 10, same_shape_different_values 10
+  formula_1                   56   wrong_tables 15, projection_column_count 11, wrong_columns 10
+  codebase_community          53   wrong_tables 15, aggregation_function 9, wrong_columns 6
+  toxicology                  43   wrong_tables 15, projection_column_count 13, aggregation_function 6
+  european_football_2         34   aggregation_function 10, projection_column_count 6, filter_values 5
+  financial                   32   wrong_tables 15, aggregation_function 6, projection_column_count 6
+  student_club                23   aggregation_function 6, projection_column_count 6, wrong_tables 4
+  california_schools          22   wrong_columns 9, aggregation_function 4, wrong_tables 4
+  debit_card_specializing     17   wrong_tables 6, aggregation_function 4, projection_column_count 3
+  superhero                    9   distinct 2, aggregation_function 2, wrong_columns 1

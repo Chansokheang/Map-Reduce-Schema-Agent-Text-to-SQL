@@ -1,0 +1,32 @@
+backup: C:\Users\user\OneDrive\Documents\02. Master Degree\03. Lab\10. Experiment\03. QA-SQL-Query Augmentation to SQL\output\gr_v1_backup_20260927_1336
+keys: before 1534, after 1534; scope 109
+
+INTEGRITY
+  keys whose SQL changed: 103
+  changed but OUTSIDE the scope: 0 []
+  in scope but UNCHANGED (possible lost write): 6 ['286', '516', '520', '890', '963', '1280']
+  still COUNT(DISTINCT) with no trigger: 13 ['286', '309', '310', '332', '354', '516', '520', '890', '953', '963', '1264', '1280', '1451']
+  scored 300/1637
+  scored 600/1637
+  scored 900/1637
+  scored 1200/1637
+  scored 1500/1637
+
+FULL SET (1534 questions)
+  gr_v1 before: 1088/1534 = 70.93%
+  gr_v1 after : 1107/1534 = 72.16%   (+19)
+
+THE 109 AFFECTED KEYS
+database                    keys  fixed  broke   net   acc before   acc after  DIST left
+thrombosis_prediction         37     18      2   +16     8/37 22%   24/37 65%          2
+financial                     15      3      1    +2     8/15 53%   10/15 67%          0
+codebase_community             9      2      0    +2      3/9 33%     5/9 56%          0
+debit_card_specializing        2      2      0    +2       0/2 0%    2/2 100%          0
+formula_1                      7      1      0    +1      4/7 57%     5/7 71%          3
+card_games                    15      3      3    +0     8/15 53%    8/15 53%          3
+european_football_2            5      2      2    +0      2/5 40%     2/5 40%          0
+student_club                   2      0      0    +0      1/2 50%     1/2 50%          1
+toxicology                    17      0      4    -4    11/17 65%    7/17 41%          4
+TOTAL                        109     31     12   +19   45/109 41%  64/109 59%         13
+
+per-key verdicts -> output/gr_v1_rerun_scores.json

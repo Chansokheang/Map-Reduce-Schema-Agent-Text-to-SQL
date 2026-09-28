@@ -1,0 +1,29 @@
+
+==============================================
+QA-SQL Evaluation
+==============================================
+Output directory: /c/Users/user/OneDrive/Documents/02. Master Degree/03. Lab/10. Experiment/03. QA-SQL-Query Augmentation to SQL/./output/gr_v1/
+Database path:    /c/Users/user/OneDrive/Documents/02. Master Degree/03. Lab/10. Experiment/03. QA-SQL-Query Augmentation to SQL/data/bird_data/dev_databases/
+Ground truth:     /c/Users/user/OneDrive/Documents/02. Master Degree/03. Lab/10. Experiment/03. QA-SQL-Query Augmentation to SQL/data/bird_data/dev.sql
+Difficulty file:  /c/Users/user/OneDrive/Documents/02. Master Degree/03. Lab/10. Experiment/03. QA-SQL-Query Augmentation to SQL/data/bird_data/dev.json
+Eval type:        acc
+CPUs:             4
+Timeout:          30.0s
+Mode:             Single file (selected_combined.json)
+Range:            [0, 1534)
+==============================================
+
+[1;33mEvaluating: selected_combined.json[0m
+----------------------------------------------
+Checking file path: C:/Users/user/OneDrive/Documents/02. Master Degree/03. Lab/10. Experiment/03. QA-SQL-Query Augmentation to SQL/output/gr_v1/selected_combined.json
+Using ground truth file: C:/Users/user/OneDrive/Documents/02. Master Degree/03. Lab/10. Experiment/03. QA-SQL-Query Augmentation to SQL/data/bird_data/dev.sql
+Evaluating range: [0, 1534)
+Starting calculation...
+                     simple               moderate             challenging          total               
+count                925                  464                  145                  1534                
+======================================    ACCURACY    =====================================
+accuracy             76.86                67.03                64.83                72.75               
+===========================================================================================
+Finished evaluation for selected_combined.json
+
+[0;32mEvaluation completed for: selected_combined.json[0m
