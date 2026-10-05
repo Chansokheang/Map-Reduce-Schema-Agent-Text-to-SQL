@@ -161,5 +161,40 @@ class NoGoldTest(unittest.TestCase):
             self.assertNotIn("SECRET_GOLD_MARKER", path.read_text(encoding="utf-8"), path.name)
 
 
+class WindowLastTest(unittest.TestCase):
+    """A rank annotates the columns it accompanies, so it belongs at the end of the projection."""
+
+    @staticmethod
+    def items_of(sql):
+        from experiments.projection_review.review import outer_select
+        _, items = outer_select(sql)
+        return items
+
+    def test_rank_is_moved_to_the_end(self):
+        from experiments.projection_review.review import window_last
+        items = self.items_of("SELECT a, b, RANK() OVER (ORDER BY b DESC) AS r FROM t")
+        self.assertEqual(window_last(items, [2, 1, 0]), [1, 0, 2])
+
+    def test_order_of_the_other_columns_is_preserved(self):
+        from experiments.projection_review.review import window_last
+        items = self.items_of("SELECT a, b, RANK() OVER (ORDER BY b DESC) AS r FROM t")
+        self.assertEqual(window_last(items, [2, 0, 1]), [0, 1, 2])
+
+    def test_no_window_function_changes_nothing(self):
+        from experiments.projection_review.review import window_last
+        items = self.items_of("SELECT a, b, c FROM t")
+        self.assertEqual(window_last(items, [2, 0, 1]), [2, 0, 1])
+
+    def test_a_projection_of_only_window_functions_is_untouched(self):
+        from experiments.projection_review.review import window_last
+        items = self.items_of("SELECT RANK() OVER (ORDER BY a) AS r, ROW_NUMBER() OVER (ORDER BY b) AS n FROM t")
+        self.assertEqual(window_last(items, [1, 0]), [1, 0])
+
+    def test_row_number_and_dense_rank_count_too(self):
+        from experiments.projection_review.review import window_last
+        items = self.items_of("SELECT ROW_NUMBER() OVER (ORDER BY a) AS n, x FROM t")
+        self.assertEqual(window_last(items, [0, 1]), [1, 0])
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

@@ -8,6 +8,18 @@ and the unchanged pipeline picks up whichever patches are enabled:
   QASQL_MATCHED_CONTENTS=1   append a '# Matched contents' block of database values to every
                              generation prompt; implementation in
                              ../../matched_contents/pipeline_patch.py
+  QASQL_MODEL_JUDGE=MODEL    run one stage on a different model; src/ shares a single client across
+  QASQL_MODEL_FIXER=MODEL    every stage, so `-m` would switch all of them. Measured: an Opus judge
+  QASQL_MODEL_GENERATION=    recovered 56 of 92 selection errors and broke 1 of 150 sampled wins.
+  QASQL_MODEL_SCHEMA=MODEL   Implementation in ../../model_override/patch.py.
+  QASQL_COLUMN_FAMILY=1      RULE P: use only the FIRST member of a numbered column family
+                             (AdmFName1/2/3) unless the question or evidence calls for the others.
+                             QASQL_ENTITY_COLUMN=1 adds the duplicate-column line (measured 0).
+                             Implementation in ../../column_family/rule.py.
+  QASQL_PROMOTE_RULES=K      move the named lettered rules (comma separated) to the head of the
+                             rule block in generation and above the judge's criteria. Position, not
+                             wording, decided compliance in the COUNT experiment (0/11 -> 11/11).
+                             Implementation in ../../rule_position/promote.py.
   QASQL_COUNT_STRICT=1       thrombosis_prediction ONLY: the argument of COUNT() is decided by the
                              evidence and nothing else (MUST NOT de-duplicate without an
                              imperative), and RULE E's join-multiplication trigger is removed so
@@ -33,6 +45,12 @@ and the unchanged pipeline picks up whichever patches are enabled:
                              ../../generation_rules/pipeline_patch.py. Composes with the
                              retrieval flags (it touches the system prompt, they touch the user
                              prompt).
+  QASQL_SURFACE_FORMS=1      append RULE Q: a single plain SELECT, no WITH/CTE and no COALESCE /
+                             IFNULL unless the question or evidence asks for a substitute value.
+                             Dev gold uses COALESCE and IFNULL 0 times in 1534 and a CTE 9 times;
+                             generation already emits 0 / 0 / 22-of-7670, so this is expected to
+                             measure 0. Appended, never promoted, so RULE A keeps its position.
+                             Implementation in ../../surface_forms/pipeline_patch.py.
   QASQL_COLUMN_GUIDANCE=1    everything QASQL_COLUMN_MEANING does, plus a column-selection
                              instruction appended to every schema worker prompt;
                              implementation in ../../column_meaning/worker_guidance_patch.py
@@ -65,6 +83,30 @@ def _load(path, name):
 
 
 def _apply():
+    if any(os.environ.get(v) for v in ("QASQL_MODEL_JUDGE", "QASQL_MODEL_FIXER",
+                                       "QASQL_MODEL_GENERATION", "QASQL_MODEL_SCHEMA")):
+        if str(ROOT) not in sys.path:
+            sys.path.insert(0, str(ROOT))
+        module = _load(ROOT / "experiments" / "model_override" / "patch.py", "qasql_model_override")
+        done = module.install()
+        if done:
+            print("[patches] per-component models: "
+                  + ", ".join(f"{k}={v}" for k, v in done.items()), file=sys.stderr, flush=True)
+    if os.environ.get("QASQL_COLUMN_FAMILY") == "1":
+        if str(ROOT) not in sys.path:
+            sys.path.insert(0, str(ROOT))
+        module = _load(ROOT / "experiments" / "column_family" / "rule.py", "qasql_column_family")
+        if module.install():
+            extra = " + entity-column line" if module.with_entity_line() else ""
+            print(f"[patches] RULE P active: first member of a numbered column family{extra}",
+                  file=sys.stderr, flush=True)
+    if os.environ.get("QASQL_PROMOTE_RULES"):
+        if str(ROOT) not in sys.path:
+            sys.path.insert(0, str(ROOT))
+        module = _load(ROOT / "experiments" / "rule_position" / "promote.py", "qasql_promote_rules")
+        if module.install():
+            print(f"[patches] promoted rules to the head of the prompt: "
+                  f"{os.environ['QASQL_PROMOTE_RULES']}", file=sys.stderr, flush=True)
     if os.environ.get("QASQL_COUNT_STRICT") == "1":
         if str(ROOT) not in sys.path:
             sys.path.insert(0, str(ROOT))
@@ -101,6 +143,32 @@ def _apply():
         module = _load(ROOT / "experiments" / "generation_rules" / "pipeline_patch.py", "qasql_generation_rules")
         if module.install():
             print("[patches] generation rules L/M/N added; fixer NULL rule corrected",
+                  file=sys.stderr, flush=True)
+    if os.environ.get("QASQL_JUDGE_ID_FIX") == "1":
+        if str(ROOT) not in sys.path:
+            sys.path.insert(0, str(ROOT))
+        module = _load(ROOT / "experiments" / "judge_id_consistency" / "patch.py", "qasql_judge_id_fix")
+        if module.install():
+            print("[patches] judge id/sql reconciliation active", file=sys.stderr, flush=True)
+    if os.environ.get("QASQL_STAGE_OUTPUTS") == "1":
+        if str(ROOT) not in sys.path:
+            sys.path.insert(0, str(ROOT))
+        module = _load(ROOT / "experiments" / "stage_outputs" / "patch.py", "qasql_stage_outputs")
+        if module.install():
+            print("[patches] stage outputs: judge_output.json + fixer_output.json",
+                  file=sys.stderr, flush=True)
+    if os.environ.get("QASQL_SCHEMA_TRACE") == "1":
+        if str(ROOT) not in sys.path:
+            sys.path.insert(0, str(ROOT))
+        module = _load(ROOT / "experiments" / "schema_trace" / "patch.py", "qasql_schema_trace")
+        if module.install():
+            print(f"[patches] schema trace active -> {module._out()}", file=sys.stderr, flush=True)
+    if os.environ.get("QASQL_SURFACE_FORMS") == "1":
+        if str(ROOT) not in sys.path:
+            sys.path.insert(0, str(ROOT))
+        module = _load(ROOT / "experiments" / "surface_forms" / "pipeline_patch.py", "qasql_surface_forms")
+        if module.install():
+            print("[patches] RULE Q active: no CTE / COALESCE / IFNULL in generated SQL",
                   file=sys.stderr, flush=True)
     if os.environ.get("QASQL_NATIVE_HEADLESS") == "1":
         # Importing it installs the patch and prints its own line.

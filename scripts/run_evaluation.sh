@@ -32,7 +32,8 @@ DIFF_JSON_PATH="${PROJECT_DIR}/data/bird_data/dev.json"
 # DIFF_JSON_PATH="${PROJECT_DIR}/data/bird_data/test.json"
 
 GROUND_TRUTH_PATH="${PROJECT_DIR}/data/bird_data/"
-OUTPUT_DIR="${PROJECT_DIR}/output/claude_headless_v6/"
+# OUTPUT_DIR="${PROJECT_DIR}/output/claude_headless_v6/"
+OUTPUT_DIR="${PROJECT_DIR}/output/opus_v1/projection_review/"
 
 FILE_NAME=""
 EVAL_ALL=true
@@ -42,12 +43,13 @@ META_TIME_OUT=30.0
 ITERATE_NUM=100
 DATA_MODE="dev"
 START_IDX="0"
-END_IDX="200"
+END_IDX="800"
 
 # All prediction files to evaluate
 ALL_FILES=(
     # "refined_selected.json"
-    "selected.json"
+    "selected_projection_reviewed.json"
+    # "selected.json"
     # "candidate_full_schema.json"
     # "candidate_sme_metadata.json"
     # "candidate_minimal_profile.json"

@@ -31,14 +31,13 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
 # ---- Defaults (edit here or override on the command line) ----
-OUTPUT_DIR="${PROJECT_DIR}/output/claude_headless_v6/"   # -o
+# OUTPUT_DIR="${PROJECT_DIR}/output/claude_headless_v6/"   # -o
 # OUTPUT_DIR="./output/cg_v2/"   # -o
 # OUTPUT_DIR="./output/all_v1/"   # -o
 # OUTPUT_DIR="./output/gr_v1/"   # -o (better from 0 -1000, not 1000 - 1300)
-# OUTPUT_DIR="./output/mc_v1/"   # -o
-# OUTPUT_DIR="./output/sl_v1/"   # -o
-# OUTPUT_DIR="./output/cg_v1/"   # -o
-# OUTPUT_DIR="./output/strict29/"   # -o
+# OUTPUT_DIR="./output/opus_v1/"   # -o
+# OUTPUT_DIR="./output/rules_on_v2/"   # -o
+OUTPUT_DIR="./output/rules_on_v1/"   # -o
 START_IDX="0"                    # --start  (first question, inclusive)
 END_IDX="1534"                     # --end    (last question, exclusive)
 # Leave START_IDX and END_IDX empty ("") to evaluate every question in selected.json.

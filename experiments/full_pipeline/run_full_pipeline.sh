@@ -35,6 +35,16 @@
 #   --matched-contents   Append a '# Matched contents' block of database values, retrieved from the
 #                        question, to every generation prompt. Build the index first:
 #                          python -m experiments.matched_contents.indexer --databases-dir <dbs>
+#   --judge-model M  run the JUDGE on model M, leaving every other stage alone
+#                    (e.g. claude-opus-5-5). Use -m M to switch every stage instead.
+#   --gen-model M    run candidate GENERATION on model M
+#   --db-dir PATH    database directory RULE P measures (default: dev_databases). Point this
+#                    at the test databases for a test run; the sparsity cache is rebuilt
+#                    automatically and is named after the directory.
+#   --column-family  RULE P: first member of a numbered column family (AdmFName1/2/3)
+#                    unless the question or evidence asks for more; --entity-column adds
+#                    the duplicate-column line, which measured 0
+#   --promote-rules LETTERS   move these lettered rules to the head of the prompt, e.g. K
 #   --count-all      RULE 0 on EVERY database (implies --count-strict); dev simulation put
 #                    this at -4 on v6, so it is a measurement, not a recommendation
 #   --count-strict       thrombosis_prediction ONLY: COUNT(DISTINCT) exactly when the evidence says
@@ -61,6 +71,18 @@
 #                        state - and correct the fixer's blanket NULL rule so stage 6 does not
 #                        reverse them (--no-fixer-align keeps the fixer prompt as it is).
 #                        Combines with any of the retrieval flags below.
+#   --judge-id-fix       Reconcile the judge's selected_id with its selected_sql. src/ validates
+#                        the two independently, so a valid id paired with another candidate's SQL
+#                        is kept as-is, and the pipeline then ships the candidate the ID names -
+#                        discarding the SQL the judge chose. Observed on Q101.
+#   --stage-outputs      Also write judge_output.json (selected id, strategy, sql, confidence,
+#                        reasoning) and fixer_output.json (sql before/after, changed, issues)
+#                        into the output dir. The pipeline otherwise keeps only the final SQL.
+#   --surface-forms      Add RULE Q, one line: a single plain SELECT, no WITH/CTE and no COALESCE
+#                        or IFNULL unless the question or evidence asks for a substitute value.
+#                        Dev gold uses COALESCE/IFNULL 0 times in 1534 and a CTE 9 times, and
+#                        generation already emits 0 / 0 / 22-of-7670, so expect it to measure 0.
+#                        Appended, never promoted, so it cannot displace RULE A.
 #   --column-guidance    Everything --column-meaning does, plus this instruction on every schema
 #                        worker (map agent) prompt:
 #                          **Column Selection:**
@@ -104,12 +126,21 @@ SCHEMA_LINKING=false
 COLUMN_MEANING=false
 COLUMN_GUIDANCE=false
 GENERATION_RULES=false
+SURFACE_FORMS=false
+STAGE_OUTPUTS=false
+JUDGE_ID_FIX=false
 FIXER_ALIGN=true
 REASONING_PROMPT=false
 PROJECTION_ORDER=false
 COUNT_CONVENTION=false
 COUNT_STRICT=false
 COUNT_ALL=false
+PROMOTE_RULES=""
+COLUMN_FAMILY=false
+ENTITY_COLUMN=false
+DB_DIR=""
+JUDGE_MODEL=""
+GEN_MODEL=""
 PROJECTION_REVIEW=false
 PR_ARGS=()
 PR_INPUT="selected"
@@ -125,11 +156,20 @@ while [[ $# -gt 0 ]]; do
         --column-meaning) COLUMN_MEANING=true; shift ;;
         --column-guidance) COLUMN_GUIDANCE=true; shift ;;
         --generation-rules) GENERATION_RULES=true; shift ;;
+        --surface-forms) SURFACE_FORMS=true; shift ;;
+        --stage-outputs) STAGE_OUTPUTS=true; shift ;;
+        --judge-id-fix) JUDGE_ID_FIX=true; shift ;;
         --reasoning-prompt) REASONING_PROMPT=true; shift ;;
         --projection-order) PROJECTION_ORDER=true; shift ;;
         --count-convention) COUNT_CONVENTION=true; shift ;;
         --count-strict) COUNT_STRICT=true; shift ;;
         --count-all) COUNT_STRICT=true; COUNT_ALL=true; shift ;;
+        --promote-rules) PROMOTE_RULES="$2"; shift 2 ;;
+        --column-family) COLUMN_FAMILY=true; shift ;;
+        --db-dir) DB_DIR="$2"; shift 2 ;;
+        --judge-model) JUDGE_MODEL="$2"; shift 2 ;;
+        --gen-model) GEN_MODEL="$2"; shift 2 ;;
+        --entity-column) COLUMN_FAMILY=true; ENTITY_COLUMN=true; shift ;;
         --no-fixer-align) FIXER_ALIGN=false; shift ;;
         --projection-review) PROJECTION_REVIEW=true; shift ;;
         --pr-no-trim) PR_ARGS+=(--no-trim); shift ;;
@@ -183,6 +223,15 @@ if [[ "$SKIP_GENERATION" == false ]]; then
     if [[ "$COLUMN_GUIDANCE" == true ]]; then
         PATCH_ENV+=(QASQL_COLUMN_GUIDANCE=1 QASQL_DATABASES_DIR="$DATABASES_DIR")
     fi
+    if [[ "$JUDGE_ID_FIX" == true ]]; then
+        PATCH_ENV+=(QASQL_JUDGE_ID_FIX=1 QASQL_JUDGE_ID_FIX_LOG="${OUTPUT_DIR%/}/judge_id_fix.jsonl")
+    fi
+    if [[ "$STAGE_OUTPUTS" == true ]]; then
+        PATCH_ENV+=(QASQL_STAGE_OUTPUTS=1)
+    fi
+    if [[ "$SURFACE_FORMS" == true ]]; then
+        PATCH_ENV+=(QASQL_SURFACE_FORMS=1)
+    fi
     if [[ "$GENERATION_RULES" == true ]]; then
         PATCH_ENV+=(QASQL_GENERATION_RULES=1)
         if [[ "$FIXER_ALIGN" == false ]]; then PATCH_ENV+=(QASQL_GENERATION_RULES_FIXER=0); fi
@@ -205,6 +254,29 @@ if [[ "$SKIP_GENERATION" == false ]]; then
     fi
     if [[ "$COUNT_ALL" == true ]]; then
         PATCH_ENV+=(QASQL_COUNT_ALL=1)
+    fi
+    if [[ -n "$PROMOTE_RULES" ]]; then
+        PATCH_ENV+=(QASQL_PROMOTE_RULES="$PROMOTE_RULES")
+    fi
+    if [[ -n "$JUDGE_MODEL" ]]; then
+        PATCH_ENV+=(QASQL_MODEL_JUDGE="$JUDGE_MODEL")
+    fi
+    if [[ -n "$GEN_MODEL" ]]; then
+        PATCH_ENV+=(QASQL_MODEL_GENERATION="$GEN_MODEL")
+    fi
+    if [[ "$COLUMN_FAMILY" == true ]]; then
+        PATCH_ENV+=(QASQL_COLUMN_FAMILY=1)
+        # RULE P names columns measured from the databases actually in use, so the cache must be
+        # built for THIS database set. On the test set this step is what stops the rule going silent.
+        if [[ -n "$DB_DIR" ]]; then
+            PATCH_ENV+=(QASQL_DB_DIR="$DB_DIR")
+            QASQL_DB_DIR="$DB_DIR" python -m experiments.column_family.sparsity "$DB_DIR" || exit 1
+        else
+            python -m experiments.column_family.sparsity || exit 1
+        fi
+    fi
+    if [[ "$ENTITY_COLUMN" == true ]]; then
+        PATCH_ENV+=(QASQL_ENTITY_COLUMN=1)
     fi
     if [[ "$NO_FIXER" == true ]]; then
         PATCH_ENV+=(QASQL_DISABLE_FIXER=1)

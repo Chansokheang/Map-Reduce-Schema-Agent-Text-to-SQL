@@ -95,6 +95,21 @@ def item_texts(items):
     return [item.sql(dialect="sqlite") for item in items]
 
 
+def window_last(items, keep):
+    """Move window-function items (RANK, ROW_NUMBER, DENSE_RANK...) to the end of the order.
+
+    A rank is derived from the columns it accompanies, so it annotates them rather than leading
+    them. All three dev gold queries with a window function in a multi-column SELECT place it
+    last (Q17, Q726, Q728), and the review had reversed exactly that on Q17: asked about
+    "Rank schools by ... showing their charter numbers" it read the opening verb as the first
+    column. The relative order of everything else is untouched.
+    """
+    windowed = [i for i in keep if list(items[i].find_all(exp.Window))]
+    if not windowed or len(windowed) == len(keep):
+        return keep
+    return [i for i in keep if i not in windowed] + windowed
+
+
 def apply_keep(tree, items, keep):
     tree.set("expressions", [items[i] for i in keep])
     return tree.sql(dialect="sqlite")
@@ -175,7 +190,7 @@ def process_one(key, sql, db_id, question, client, work_dir, allow_trim=True):
         record["items"] = texts
         try:
             answer = client.complete(build_payload(question, texts))
-            keep = validate_keep(answer["keep"], len(items))
+            keep = window_last(items, validate_keep(answer["keep"], len(items)))
             record["keep"] = keep
             record["reason"] = answer.get("reason", "")
             trims = sorted(keep) != list(range(len(items)))

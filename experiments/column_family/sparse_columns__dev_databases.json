@@ -1,0 +1,30 @@
+{
+ "california_schools": {
+  "schools": [
+   {
+    "column": "AdmEmail2",
+    "filled": 2.4
+   },
+   {
+    "column": "AdmEmail3",
+    "filled": 0.2
+   },
+   {
+    "column": "AdmFName2",
+    "filled": 2.4
+   },
+   {
+    "column": "AdmFName3",
+    "filled": 0.2
+   },
+   {
+    "column": "AdmLName2",
+    "filled": 2.4
+   },
+   {
+    "column": "AdmLName3",
+    "filled": 0.2
+   }
+  ]
+ }
+}
