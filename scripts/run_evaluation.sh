@@ -33,22 +33,28 @@ DIFF_JSON_PATH="${PROJECT_DIR}/data/bird_data/dev.json"
 
 GROUND_TRUTH_PATH="${PROJECT_DIR}/data/bird_data/"
 # OUTPUT_DIR="${PROJECT_DIR}/output/claude_headless_v6/"
-OUTPUT_DIR="${PROJECT_DIR}/output/opus_v1/projection_review/"
+OUTPUT_DIR="${PROJECT_DIR}/output/run_v1/projection_review/"
+# OUTPUT_DIR="${PROJECT_DIR}/output/idfix_v1_judge_only/projection_review/"
+# OUTPUT_DIR="${PROJECT_DIR}/output/idfix_v1/question_form_postprocess/"
 
 FILE_NAME=""
 EVAL_ALL=true
 EVAL_TYPE="acc"
-NUM_CPUS=4
-META_TIME_OUT=30.0
+NUM_CPUS=1
+META_TIME_OUT=300.0
 ITERATE_NUM=100
 DATA_MODE="dev"
 START_IDX="0"
-END_IDX="800"
+END_IDX="950"
 
 # All prediction files to evaluate
 ALL_FILES=(
     # "refined_selected.json"
-    "selected_projection_reviewed.json"
+    # Both post-hoc stages now write selected.json into their own folder; point -o at that
+    # folder (e.g. .../projection_review/). The old names are kept for pre-rename runs.
+    "selected.json"
+    # "selected_projection_reviewed.json"
+    # "selected_postprocessed.json"
     # "selected.json"
     # "candidate_full_schema.json"
     # "candidate_sme_metadata.json"
